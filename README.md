@@ -50,11 +50,13 @@ strix --help
 
 ## Usage
 
-Interactive research run (accept the defaults for the offline demo):
+Interactive research run:
 
 ```bash
-strix                 # or: python -m strix
+strix   # Press Enter for offline DEMO, or enter AAPL for live SEC data
 ```
+
+(`python -m strix` is equivalent.)
 
 ```
 Ticker [DEMO]:
