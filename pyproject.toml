@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "strix"
+version = "0.1.0"
+description = "STRIX — Structured Traceability, Retrieval, and Intelligence eXtraction. Evidence-grounded research CLI (synthetic demonstration)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "BLKPVNTHR" }]
+dependencies = [
+    "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+]
+
+[project.scripts]
+strix = "strix.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/strix"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Deliberate Unicode-lookalike run IDs prove the ASCII-only regex holds.
+"tests/test_run_store.py" = ["RUF001"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+packages = ["strix"]
+plugins = ["pydantic.mypy"]
+strict = true
+warn_unreachable = true

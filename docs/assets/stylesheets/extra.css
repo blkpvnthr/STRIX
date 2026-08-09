@@ -1,0 +1,35 @@
+/* STRIX documentation accents. */
+
+:root {
+  --strix-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* Terminal transcripts: keep them visually distinct from Python code. */
+.language-console code,
+.language-text code {
+  font-family: var(--strix-mono);
+}
+
+/* Lineage arrows in tables and inline code should never wrap. */
+code {
+  white-space: pre-wrap;
+}
+
+td code,
+.md-typeset table code {
+  white-space: nowrap;
+}
+
+/* Slightly tighter mermaid diagrams. */
+.mermaid {
+  text-align: center;
+}
+
+/* Evidence/claim ID chips. */
+.md-typeset .strix-id {
+  font-family: var(--strix-mono);
+  font-size: 0.85em;
+  background: var(--md-code-bg-color);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.35rem;
+}

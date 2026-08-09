@@ -1,0 +1,51 @@
+{
+  "fixture_name": "demo-company-facts",
+  "fixture_version": "1.0.0",
+  "synthetic": true,
+  "notice": "SYNTHETIC DEMONSTRATION DATA. Demonstration Company is a fictional entity created for the STRIX prototype. These figures are not real financial data, do not describe any real company, and must never be presented as such.",
+  "source_type": "synthetic_fixture",
+  "created_at": "2026-07-15T00:00:00+00:00",
+  "company": {
+    "company_id": "demo-company-000001",
+    "ticker": "DEMO",
+    "name": "Demonstration Company"
+  },
+  "periods": [
+    {
+      "period": "2025-Q2",
+      "known_at": "2025-07-15T00:00:00+00:00",
+      "facts": [
+        {
+          "concept": "revenue",
+          "value": "1000000000",
+          "unit": "USD",
+          "locator": "/periods/0/facts/0"
+        },
+        {
+          "concept": "operating_income",
+          "value": "84000000",
+          "unit": "USD",
+          "locator": "/periods/0/facts/1"
+        }
+      ]
+    },
+    {
+      "period": "2026-Q2",
+      "known_at": "2026-07-15T00:00:00+00:00",
+      "facts": [
+        {
+          "concept": "revenue",
+          "value": "1000000000",
+          "unit": "USD",
+          "locator": "/periods/1/facts/0"
+        },
+        {
+          "concept": "operating_income",
+          "value": "101000000",
+          "unit": "USD",
+          "locator": "/periods/1/facts/1"
+        }
+      ]
+    }
+  ]
+}

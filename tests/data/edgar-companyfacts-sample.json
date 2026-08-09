@@ -1,0 +1,120 @@
+{
+  "_comment": "Abridged SEC EDGAR companyfacts-schema sample for STRIX tests. Example Filer Inc. is fictional; figures are synthetic test data, not real filings.",
+  "cik": 1234567,
+  "entityName": "Example Filer Inc.",
+  "facts": {
+    "us-gaap": {
+      "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-04-01",
+              "end": "2025-06-30",
+              "val": 90000000000,
+              "accn": "0000000000-25-000001",
+              "fy": 2025,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2025-08-01"
+            },
+            {
+              "start": "2025-01-01",
+              "end": "2025-06-30",
+              "val": 175000000000,
+              "accn": "0000000000-25-000001",
+              "fy": 2025,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2025-08-01"
+            },
+            {
+              "start": "2025-01-01",
+              "end": "2025-12-31",
+              "val": 380000000000,
+              "accn": "0000000000-26-000001",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2026-02-10"
+            },
+            {
+              "start": "2026-04-01",
+              "end": "2026-06-30",
+              "val": 100000000000,
+              "accn": "0000000000-26-000002",
+              "fy": 2026,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2026-07-31"
+            },
+            {
+              "start": "2026-04-01",
+              "end": "2026-06-30",
+              "val": 100000000001,
+              "accn": "0000000000-26-000003",
+              "fy": 2026,
+              "fp": "Q2",
+              "form": "10-Q/A",
+              "filed": "2026-08-05"
+            },
+            {
+              "start": "2026-07-01",
+              "end": "2026-09-30",
+              "val": 104000000000,
+              "accn": "0000000000-26-000004",
+              "fy": 2026,
+              "fp": "Q3",
+              "form": "10-Q",
+              "filed": "2026-10-25"
+            }
+          ]
+        }
+      },
+      "OperatingIncomeLoss": {
+        "label": "Operating Income (Loss)",
+        "units": {
+          "USD": [
+            {
+              "start": "2025-04-01",
+              "end": "2025-06-30",
+              "val": 27000000000,
+              "accn": "0000000000-25-000001",
+              "fy": 2025,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2025-08-01"
+            },
+            {
+              "start": "2026-04-01",
+              "end": "2026-06-30",
+              "val": 31000000000,
+              "accn": "0000000000-26-000002",
+              "fy": 2026,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2026-07-31"
+            }
+          ]
+        }
+      },
+      "EarningsPerShareDiluted": {
+        "label": "Earnings Per Share, Diluted",
+        "units": {
+          "USD/shares": [
+            {
+              "start": "2026-04-01",
+              "end": "2026-06-30",
+              "val": 1.23,
+              "accn": "0000000000-26-000002",
+              "fy": 2026,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2026-07-31"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
