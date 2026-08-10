@@ -1,0 +1,22 @@
+{
+  "calculation_versions": {
+    "operating_margin": "1.0.0",
+    "operating_margin_change_pp": "1.0.0"
+  },
+  "calculations_hash": "909f4511e46516c55de571abefeeebe6a4b7b4bddfe147c725c4903617df8142",
+  "claims_hash": "5123f08dc100ec656c608d26b1752670097f3183d9082a4181cc3c29fabce9f0",
+  "created_at": "2026-08-08T12:00:00+00:00",
+  "evidence_hash": "58227f746c75a12d45d11664a6ef3e3697e25a5bc67e33d79e910d581b4f901d",
+  "facts_hash": "a1cd41ebfaf9dd4315a73acc56a72d8d161797a6aa7cf256848eb6e0a889b3e9",
+  "final_status": "passed",
+  "input_hash": "9432753e3d5993ba7d59bef518d4c92b19d0db2daaa2cc4ffe83bec9648254fb",
+  "pipeline_version": "0.1.0",
+  "run_id": "RUN-20260808-001",
+  "source_hashes": {
+    "demo-company-facts.json": "1c7cf5bba8aaa5bb9111fea1941ae53b79eb11de54e668315e450d4c70aaade7"
+  },
+  "source_name": "demo-company-facts.json",
+  "source_type": "synthetic_fixture",
+  "source_version": "1.0.0",
+  "verification_hash": "df9b4d4502cffb9b3d9c6c457f1babe49d802b0116dad953db67c7ada1c93514"
+}

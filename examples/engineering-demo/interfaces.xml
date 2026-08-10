@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC DEMONSTRATION DATA - fictional SYNTH-CTRL system; not a real product, program, or standard. -->
+<interface-control>
+  <interface id="IF-3001" from="PT-0001" from-rev="B" to="PT-0002" to-rev="A" medium="electrical"/>
+  <interface id="IF-3002" from="PT-0001" from-rev="B" to="PT-0003" to-rev="A" medium="data"/>
+  <interface id="IF-3003" from="PT-0001" from-rev="B" to="PT-0004" to-rev="A" medium="data"/>
+  <interface id="IF-3004" from="PT-0003" from-rev="A" to="PT-0002" to-rev="A" medium="thermal"/>
+  <interface id="IF-3005" from="PT-0001" from-rev="B" to="PT-0005" to-rev="B" medium="data"/>
+  <allocation requirement="REQ-101" component="PT-0003"/>
+  <allocation requirement="REQ-102" component="PT-0001"/>
+  <allocation requirement="REQ-103" component="PT-0002"/>
+  <allocation requirement="REQ-104" component="PT-0004"/>
+  <allocation requirement="REQ-105" component="PT-0006"/>
+  <allocation requirement="REQ-106" component="PT-0005"/>
+  <allocation requirement="REQ-107" component="PT-0099"/>
+</interface-control>

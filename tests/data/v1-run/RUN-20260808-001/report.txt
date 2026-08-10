@@ -1,0 +1,12 @@
+Operating profitability of Demonstration Company (DEMO)
+=======================================================
+
+Run: RUN-20260808-001
+Verification: passed
+
+Finding:
+  Operating margin increased from 8.4% to 10.1%, an improvement of 1.7
+  percentage points.
+  Evidence: EV-9d33ded8a427, EV-649d8a693225, EV-d1e9faaf6787
+
+Synthetic demonstration data — not investment advice.

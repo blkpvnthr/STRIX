@@ -1,0 +1,8 @@
+# SYNTHETIC DEMONSTRATION DATA - fictional SYNTH-CTRL system; not a real product, program, or standard.
+part_id,name,category,revision,mass_kg,supply_voltage_v
+PT-0001,Primary Controller,controller,B,4.20,24.0
+PT-0002,Coolant Pump,actuator,B,7.50,48.0
+PT-0003,Temperature Sensor,sensor,A,0.15,5.0
+PT-0004,Flow Control Valve,actuator,A,2.10,24.0
+PT-0005,Pressure Sensor,sensor,A,0.18,5.0
+PT-0006,Operator Panel,hmi,A,1.30,12.0

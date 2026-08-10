@@ -1,0 +1,17 @@
+SYNTHETIC DEMONSTRATION DATA - fictional SYNTH-CTRL system; not a real product, program, or standard.
+SYNTH-CTRL System Description (document SYNTH-CTRL-DESC, revision A)
+
+The SYNTH-CTRL demonstration plant regulates the temperature of a closed
+coolant loop. Sensing, actuation, and supervision are split across six
+line-replaceable units connected by a small deterministic data bus.
+
+[part: PT-0001] The primary controller coordinates all closed-loop control.
+It polls every attached sensor, schedules pump and valve commands, and
+raises alarms to the operator panel when any reading leaves its band.
+
+[part: PT-0002] The coolant pump circulates fluid through the loop at a
+regulated flow rate. Its drive electronics accept speed demands from the
+primary controller over the electrical power-and-command harness.
+
+[part: PT-0006] The operator panel presents live pressure and temperature
+readings and exposes the manual shutdown control required for maintenance.

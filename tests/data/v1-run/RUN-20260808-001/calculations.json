@@ -1,0 +1,49 @@
+[
+  {
+    "calculation_id": "CALC-cf3c3f6a4f26",
+    "calculation_name": "operating_margin",
+    "calculation_version": "1.0.0",
+    "input_calculation_ids": [],
+    "input_fact_ids": [
+      "FACT-59fc3cdc0b33",
+      "FACT-fde4b197a83c"
+    ],
+    "observation_period": "2025-Q2",
+    "subject_id": "demo-company-000001",
+    "unit": "ratio",
+    "value": "0.084"
+  },
+  {
+    "calculation_id": "CALC-fb3e8afffc03",
+    "calculation_name": "operating_margin",
+    "calculation_version": "1.0.0",
+    "input_calculation_ids": [],
+    "input_fact_ids": [
+      "FACT-9cff5a7d197e",
+      "FACT-984d1189dc7a"
+    ],
+    "observation_period": "2026-Q2",
+    "subject_id": "demo-company-000001",
+    "unit": "ratio",
+    "value": "0.101"
+  },
+  {
+    "calculation_id": "CALC-bb36572ac2e1",
+    "calculation_name": "operating_margin_change_pp",
+    "calculation_version": "1.0.0",
+    "input_calculation_ids": [
+      "CALC-fb3e8afffc03",
+      "CALC-cf3c3f6a4f26"
+    ],
+    "input_fact_ids": [
+      "FACT-9cff5a7d197e",
+      "FACT-984d1189dc7a",
+      "FACT-59fc3cdc0b33",
+      "FACT-fde4b197a83c"
+    ],
+    "observation_period": "2025-Q2..2026-Q2",
+    "subject_id": "demo-company-000001",
+    "unit": "percentage_points",
+    "value": "1.7"
+  }
+]

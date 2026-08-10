@@ -27,6 +27,7 @@ site/
 research_runs/
 
 # Environment files
+.txt
 .env
 .env.*
 !.env.example

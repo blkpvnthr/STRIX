@@ -39,3 +39,27 @@ class RunNotFoundError(StrixError):
 
 class ReplayError(StrixError):
     """A preserved run could not be loaded for replay."""
+
+
+class EngineeringSourceError(SourceError):
+    """An engineering source (manifest or declared file) could not be
+    trusted: missing/unreadable/malformed input, schema violation, policy
+    refusal, or anything else preventing trustworthy interpretation."""
+
+
+class ExportError(StrixError):
+    """The export-completeness guard failed: an unverified or unresolvable
+    item reached export build. Always an integrity failure."""
+
+
+def error_code(exc: StrixError) -> str:
+    """Machine-readable snake_case code for a typed error (CLI output)."""
+    name = type(exc).__name__
+    out = [name[0].lower()]
+    for char in name[1:]:
+        if char.isupper():
+            out.append("_")
+            out.append(char.lower())
+        else:
+            out.append(char)
+    return "".join(out)

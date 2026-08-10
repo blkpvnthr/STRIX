@@ -1,0 +1,55 @@
+[
+  {
+    "calculation_id": "CALC-cf3c3f6a4f26",
+    "display_value": "8.4%",
+    "evidence_id": "EV-9d33ded8a427",
+    "evidence_type": "calculation",
+    "known_at": "2025-07-15T00:00:00+00:00",
+    "metric": "operating_margin",
+    "observation_period": "2025-Q2",
+    "source_fact_ids": [
+      "FACT-59fc3cdc0b33",
+      "FACT-fde4b197a83c"
+    ],
+    "status": "verified",
+    "subject_id": "demo-company-000001",
+    "unit": "ratio",
+    "value": "0.084"
+  },
+  {
+    "calculation_id": "CALC-fb3e8afffc03",
+    "display_value": "10.1%",
+    "evidence_id": "EV-649d8a693225",
+    "evidence_type": "calculation",
+    "known_at": "2026-07-15T00:00:00+00:00",
+    "metric": "operating_margin",
+    "observation_period": "2026-Q2",
+    "source_fact_ids": [
+      "FACT-9cff5a7d197e",
+      "FACT-984d1189dc7a"
+    ],
+    "status": "verified",
+    "subject_id": "demo-company-000001",
+    "unit": "ratio",
+    "value": "0.101"
+  },
+  {
+    "calculation_id": "CALC-bb36572ac2e1",
+    "display_value": "1.7 percentage points",
+    "evidence_id": "EV-d1e9faaf6787",
+    "evidence_type": "calculation",
+    "known_at": "2026-07-15T00:00:00+00:00",
+    "metric": "operating_margin_change_pp",
+    "observation_period": "2025-Q2..2026-Q2",
+    "source_fact_ids": [
+      "FACT-9cff5a7d197e",
+      "FACT-984d1189dc7a",
+      "FACT-59fc3cdc0b33",
+      "FACT-fde4b197a83c"
+    ],
+    "status": "verified",
+    "subject_id": "demo-company-000001",
+    "unit": "percentage_points",
+    "value": "1.7"
+  }
+]
