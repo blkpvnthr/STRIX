@@ -27,6 +27,8 @@ docs = [
 
 [project.scripts]
 strix = "strix.cli:main"
+strix-service = "strix.service:serve"
+strix-demo-fixture = "strix.market.fixture:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strix"]
