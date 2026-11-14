@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TextIO
 
 from strix import PIPELINE_VERSION, __version__
-from strix.errors import StrixError
+from strix.errors import EngineeringSourceError, StrixError, error_code
 from strix.models import ResearchSpec, VerificationStatus
 from strix.pipeline import Clock, SystemClock, run_research
 from strix.reasoning.base import Reasoner
@@ -38,7 +38,7 @@ from strix.rendering.terminal import (
     replay_text,
 )
 from strix.replay import replay_run
-from strix.run_store import resolve_state_dir
+from strix.run_store import RunStore, resolve_state_dir
 from strix.sources import connector_for, parse_source
 from strix.sources.base import FetchedSource, SourceConnector, SourceDocument
 from strix.sources.demo import DEMO_TICKER, DemoConnector
@@ -94,9 +94,61 @@ def build_parser() -> argparse.ArgumentParser:
     replay_parser.add_argument(
         "--state-dir",
         metavar="PATH",
-        default=None,
+        # SUPPRESS: when the flag is omitted after the subcommand, the root
+        # parser's value survives instead of being clobbered with None.
+        default=argparse.SUPPRESS,
         dest="state_dir",
         help="directory containing the run (same default as the root command)",
+    )
+
+    engineer_parser = subparsers.add_parser(
+        "engineer",
+        help="engineering data compiler (synthetic demonstration mode)",
+        description=(
+            "Compile heterogeneous legacy engineering records into an "
+            "evidence-backed system model. Offline; synthetic public data "
+            "only in this version."
+        ),
+    )
+    engineer_sub = engineer_parser.add_subparsers(dest="engineer_command", required=True)
+    compile_parser = engineer_sub.add_parser(
+        "compile",
+        help="compile a declared input directory into a verified model run",
+        description=(
+            "Read the engineering-project.json manifest in INPUT_DIR, parse "
+            "every declared source with its declared-format adapter, verify "
+            "the candidate model, and persist a replayable run with a "
+            "deterministic model.json export. Undeclared files are never "
+            "ingested."
+        ),
+    )
+    compile_parser.add_argument(
+        "input_dir", metavar="INPUT_DIR", help="directory containing the project manifest"
+    )
+    compile_parser.add_argument(
+        "--project-id",
+        required=True,
+        metavar="ID",
+        help="project identifier; must match the manifest project_id",
+    )
+    compile_parser.add_argument(
+        "--as-of",
+        required=True,
+        metavar="DATE",
+        help="epistemic cutoff date (ISO, e.g. 2026-08-09)",
+    )
+    compile_parser.add_argument(
+        "--state-dir",
+        metavar="PATH",
+        default=argparse.SUPPRESS,
+        dest="state_dir",
+        help="directory for run artifacts (same default as the root command)",
+    )
+    compile_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit 1 when any candidate is quarantined (display-only flag; "
+        "never part of the run's deterministic content)",
     )
     return parser
 
@@ -119,11 +171,13 @@ def main(
     clock = clock or SystemClock()
 
     args = build_parser().parse_args(argv)
-    state_dir = resolve_state_dir(args.state_dir, environ)
+    state_dir = resolve_state_dir(getattr(args, "state_dir", None), environ)
 
     try:
         if args.command == "replay":
-            return _cmd_replay(args.run_id, state_dir, out, reasoner)
+            return _cmd_replay(args.run_id, state_dir, out, err, reasoner)
+        if args.command == "engineer":
+            return _cmd_engineer_compile(args, state_dir, out, err, clock)
         return _cmd_research(
             state_dir,
             out=out,
@@ -276,11 +330,88 @@ def _format_date(value: date) -> str:
 
 
 # --------------------------------------------------------------------------
-# Replay command
+# Replay command (mode dispatch)
 # --------------------------------------------------------------------------
 
 
-def _cmd_replay(run_id: str, state_dir: Path, out: TextIO, reasoner: Reasoner | None) -> int:
-    outcome = replay_run(run_id, state_dir, reasoner=reasoner)
-    out.write(replay_text(outcome))
-    return 0 if outcome.passed else 1
+def _cmd_replay(
+    run_id: str, state_dir: Path, out: TextIO, err: TextIO, reasoner: Reasoner | None
+) -> int:
+    # Dispatch on the RAW manifest dict before any model validation: v1
+    # manifests are extra="forbid" and carry no "mode" key, so old on-disk
+    # runs take the v1 path unchanged.
+    raw_manifest = RunStore(state_dir).load_json(run_id, "manifest.json")
+    if isinstance(raw_manifest, dict) and raw_manifest.get("mode") == "engineering":
+        from strix.engineering.replay import replay_engineering_run
+
+        try:
+            outcome = replay_engineering_run(run_id, state_dir)
+        except StrixError as exc:
+            err.write(f"Error [{error_code(exc)}]: {exc}\n")
+            return 1
+        out.write(replay_text(outcome))
+        return 0 if outcome.passed else 1
+    v1_outcome = replay_run(run_id, state_dir, reasoner=reasoner)
+    out.write(replay_text(v1_outcome))
+    return 0 if v1_outcome.passed else 1
+
+
+# --------------------------------------------------------------------------
+# Engineering compile command
+# --------------------------------------------------------------------------
+
+_PROJECT_ID_RE = re.compile(r"^[A-Z][A-Z0-9\-]{1,31}$")
+
+
+def _cmd_engineer_compile(
+    args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO, clock: Clock
+) -> int:
+    from strix.engineering.models import ModelStatus
+    from strix.engineering.pipeline import PROGRESS_LABELS, compile_project
+    from strix.engineering.render import compile_summary
+
+    try:
+        if not _PROJECT_ID_RE.fullmatch(args.project_id):
+            raise EngineeringSourceError(
+                f"invalid --project-id {args.project_id!r}; expected pattern "
+                f"{_PROJECT_ID_RE.pattern}"
+            )
+        try:
+            as_of_date = date.fromisoformat(args.as_of)
+        except ValueError as exc:
+            raise EngineeringSourceError(
+                f"invalid --as-of {args.as_of!r}; expected an ISO date"
+            ) from exc
+
+        out.write(BANNER + "\n")
+        total = len(PROGRESS_LABELS)
+        counter = {"n": 0}
+
+        def step(label: str) -> None:
+            counter["n"] += 1
+            out.write(progress_line(counter["n"], total, label, "complete") + "\n")
+
+        def on_ignored(name: str) -> None:
+            out.write(f"Ignoring undeclared file: {name}\n")
+
+        result = compile_project(
+            Path(args.input_dir),
+            project_id=args.project_id,
+            as_of_date=as_of_date,
+            state_dir=state_dir,
+            clock=clock,
+            step=step,
+            on_ignored=on_ignored,
+        )
+    except StrixError as exc:
+        # Integrity failures carry a machine-readable code and exit 1.
+        err.write(f"Error [{error_code(exc)}]: {exc}\n")
+        return 1
+
+    out.write(compile_summary(result))
+    status = result.verification.status
+    if status is ModelStatus.FAILED_MODEL:
+        return 1
+    if status is ModelStatus.COMPLETED_WITH_REJECTIONS and args.strict:
+        return 1
+    return 0

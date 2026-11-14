@@ -1,0 +1,50 @@
+[
+  {
+    "concept": "revenue",
+    "fact_id": "FACT-fde4b197a83c",
+    "known_at": "2025-07-15T00:00:00+00:00",
+    "observation_period": "2025-Q2",
+    "source_artifact_id": "ART-f2b516c96247",
+    "source_locator": "/periods/0/facts/0",
+    "subject_id": "demo-company-000001",
+    "unit": "USD",
+    "validation_status": "valid",
+    "value": "1000000000"
+  },
+  {
+    "concept": "operating_income",
+    "fact_id": "FACT-59fc3cdc0b33",
+    "known_at": "2025-07-15T00:00:00+00:00",
+    "observation_period": "2025-Q2",
+    "source_artifact_id": "ART-f2b516c96247",
+    "source_locator": "/periods/0/facts/1",
+    "subject_id": "demo-company-000001",
+    "unit": "USD",
+    "validation_status": "valid",
+    "value": "84000000"
+  },
+  {
+    "concept": "revenue",
+    "fact_id": "FACT-984d1189dc7a",
+    "known_at": "2026-07-15T00:00:00+00:00",
+    "observation_period": "2026-Q2",
+    "source_artifact_id": "ART-f2b516c96247",
+    "source_locator": "/periods/1/facts/0",
+    "subject_id": "demo-company-000001",
+    "unit": "USD",
+    "validation_status": "valid",
+    "value": "1000000000"
+  },
+  {
+    "concept": "operating_income",
+    "fact_id": "FACT-9cff5a7d197e",
+    "known_at": "2026-07-15T00:00:00+00:00",
+    "observation_period": "2026-Q2",
+    "source_artifact_id": "ART-f2b516c96247",
+    "source_locator": "/periods/1/facts/1",
+    "subject_id": "demo-company-000001",
+    "unit": "USD",
+    "validation_status": "valid",
+    "value": "101000000"
+  }
+]

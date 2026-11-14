@@ -124,45 +124,100 @@ class RunStore:
         today: date,
     ) -> tuple[str, Path, RunManifest, ResearchReport]:
         """Write a complete run atomically; returns (run_id, dir, manifest, report)."""
-        self.state_dir.mkdir(parents=True, exist_ok=True)
-        staging = Path(tempfile.mkdtemp(dir=self.state_dir, prefix=".staging-"))
-        try:
-            self._write_atomic(staging / "spec.json", pretty_json_bytes(spec))
-            self._write_atomic(staging / "facts.json", pretty_json_bytes(outcome.facts))
-            self._write_atomic(
-                staging / "calculations.json", pretty_json_bytes(outcome.calculations)
-            )
-            self._write_atomic(staging / "evidence.json", pretty_json_bytes(outcome.evidence))
-            self._write_atomic(staging / "claims.json", pretty_json_bytes(outcome.claims))
-            self._write_atomic(
-                staging / "verification.json", pretty_json_bytes(outcome.verification)
-            )
-            self._preserve_raw(staging, raw_name, raw_bytes)
+        # Capture the finalized models so the caller gets them back after commit.
+        finalized: dict[str, RunManifest | ResearchReport] = {}
 
-            sequence = self._next_sequence(today)
-            while True:
-                run_id = f"RUN-{today:%Y%m%d}-{sequence:03d}"
-                report = build_report(run_id)
-                manifest = build_manifest(run_id)
-                self._write_atomic(staging / "report.txt", report_text(report).encode("utf-8"))
-                # The manifest is always the last artifact written.
-                self._write_atomic(staging / "manifest.json", pretty_json_bytes(manifest))
-                self._fsync_dir(staging)
-                target = self.state_dir / run_id
-                try:
-                    os.rename(staging, target)
-                except OSError as exc:
-                    if exc.errno in (errno.EEXIST, errno.ENOTEMPTY, errno.EISDIR):
-                        sequence += 1
-                        if sequence > _MAX_SEQUENCE:
-                            raise RunStoreError(f"exhausted run IDs for {today:%Y%m%d}") from exc
-                        continue
-                    raise RunStoreError(f"could not commit run directory: {exc}") from exc
-                self._fsync_dir(self.state_dir)
-                return run_id, target, manifest, report
+        def finalize(run_id: str) -> tuple[dict[str, bytes], bytes]:
+            report = build_report(run_id)
+            manifest = build_manifest(run_id)
+            finalized["report"] = report
+            finalized["manifest"] = manifest
+            return (
+                {"report.txt": report_text(report).encode("utf-8")},
+                pretty_json_bytes(manifest),
+            )
+
+        run_id, target = self.persist_generic(
+            json_artifacts={
+                "spec.json": spec,
+                "facts.json": outcome.facts,
+                "calculations.json": outcome.calculations,
+                "evidence.json": outcome.evidence,
+                "claims.json": outcome.claims,
+                "verification.json": outcome.verification,
+            },
+            raw_files={raw_name: raw_bytes},
+            finalize=finalize,
+            today=today,
+        )
+        manifest = finalized["manifest"]
+        report = finalized["report"]
+        assert isinstance(manifest, RunManifest) and isinstance(report, ResearchReport)
+        return run_id, target, manifest, report
+
+    def persist_generic(
+        self,
+        *,
+        json_artifacts: Mapping[str, object],
+        raw_files: Mapping[str, bytes],
+        finalize: Callable[[str], tuple[Mapping[str, bytes], bytes]],
+        today: date,
+    ) -> tuple[str, Path]:
+        """Write an arbitrary run atomically.
+
+        ``json_artifacts`` are pretty-printed JSON files; ``raw_files`` are
+        preserved byte-exact under ``raw/`` with per-file hash re-verification.
+        ``finalize(run_id)`` returns per-run text files plus the manifest
+        bytes; ``manifest.json`` is always the structurally last file written.
+        Commit is a single atomic rename; a crash leaves only an ignorable
+        hidden ``.staging-*`` directory, never a visible ``RUN-*``.
+        """
+        try:
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+            staging = Path(tempfile.mkdtemp(dir=self.state_dir, prefix=".staging-"))
+        except OSError as exc:
+            raise RunStoreError(f"state directory {self.state_dir} is not writable: {exc}") from exc
+        try:
+            for name, payload in json_artifacts.items():
+                self._write_atomic(
+                    staging / sanitize_artifact_name(name), pretty_json_bytes(payload)
+                )
+            self._preserve_raw_files(staging, raw_files)
+            return self._commit(staging, finalize, today)
         except BaseException:
             _cleanup_staging(staging)
             raise
+
+    def _commit(
+        self,
+        staging: Path,
+        finalize: Callable[[str], tuple[Mapping[str, bytes], bytes]],
+        today: date,
+    ) -> tuple[str, Path]:
+        """Allocate a run ID, write per-run files (manifest last), and rename."""
+        sequence = self._next_sequence(today)
+        while True:
+            # Guard BEFORE building the id: sequence 1000 would format as
+            # four digits and commit an invalid, unreplayable run name.
+            if sequence > _MAX_SEQUENCE:
+                raise RunStoreError(f"exhausted run IDs for {today:%Y%m%d}")
+            run_id = f"RUN-{today:%Y%m%d}-{sequence:03d}"
+            per_run_files, manifest_bytes = finalize(run_id)
+            for name, data in per_run_files.items():
+                self._write_atomic(staging / sanitize_artifact_name(name), data)
+            # The manifest is always the last artifact written.
+            self._write_atomic(staging / "manifest.json", manifest_bytes)
+            self._fsync_dir(staging)
+            target = self.state_dir / run_id
+            try:
+                os.rename(staging, target)
+            except OSError as exc:
+                if exc.errno in (errno.EEXIST, errno.ENOTEMPTY, errno.EISDIR):
+                    sequence += 1
+                    continue
+                raise RunStoreError(f"could not commit run directory: {exc}") from exc
+            self._fsync_dir(self.state_dir)
+            return run_id, target
 
     def _next_sequence(self, today: date) -> int:
         prefix = f"RUN-{today:%Y%m%d}-"
@@ -174,19 +229,20 @@ class RunStore:
                     highest = max(highest, int(name[len(prefix) :]))
         return highest + 1
 
-    def _preserve_raw(self, staging: Path, raw_name: str, raw_bytes: bytes) -> None:
-        """Copy raw source bytes exactly and re-verify the copy's hash."""
-        original_hash = sha256_hex(raw_bytes)
+    def _preserve_raw_files(self, staging: Path, files: Mapping[str, bytes]) -> None:
+        """Copy raw source bytes exactly and re-verify every copy's hash."""
         raw_dir = staging / "raw"
         raw_dir.mkdir()
-        target = raw_dir / sanitize_artifact_name(raw_name)
-        self._write_atomic(target, raw_bytes)
-        preserved_hash = sha256_hex(target.read_bytes())
-        if preserved_hash != original_hash:
-            raise RunStoreError(
-                f"preserved raw artifact hash {preserved_hash} does not match "
-                f"source hash {original_hash}"
-            )
+        for raw_name, raw_bytes in files.items():
+            original_hash = sha256_hex(raw_bytes)
+            target = raw_dir / sanitize_artifact_name(raw_name)
+            self._write_atomic(target, raw_bytes)
+            preserved_hash = sha256_hex(target.read_bytes())
+            if preserved_hash != original_hash:
+                raise RunStoreError(
+                    f"preserved raw artifact hash {preserved_hash} does not match "
+                    f"source hash {original_hash}"
+                )
         self._fsync_dir(raw_dir)
 
     @staticmethod

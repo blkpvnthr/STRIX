@@ -1,0 +1,51 @@
+{
+  "manifest_format": "strix-engineering-project",
+  "manifest_version": "1.0.0",
+  "project_id": "SYNTH-CTRL",
+  "project_name": "Synthetic Control System (fictional)",
+  "synthetic": true,
+  "notice": "SYNTHETIC DEMONSTRATION DATA - fictional SYNTH-CTRL system; not a real product, program, or standard.",
+  "ground_truth": "expected-model.json",
+  "sources": [
+    {
+      "file": "requirements.reqif",
+      "format": "reqif",
+      "document_id": "SYNTH-CTRL-REQ",
+      "revision": "C",
+      "known_at": "2026-05-01",
+      "handling": ["PUBLIC", "SYNTHETIC"]
+    },
+    {
+      "file": "components.csv",
+      "format": "component_csv",
+      "document_id": "SYNTH-CTRL-BOM",
+      "revision": "B",
+      "known_at": "2026-05-15",
+      "handling": ["PUBLIC", "SYNTHETIC"]
+    },
+    {
+      "file": "interfaces.xml",
+      "format": "interface_xml",
+      "document_id": "SYNTH-CTRL-ICD",
+      "revision": "A",
+      "known_at": "2026-04-20",
+      "handling": ["PUBLIC", "SYNTHETIC"]
+    },
+    {
+      "file": "system-description.txt",
+      "format": "text_description",
+      "document_id": "SYNTH-CTRL-DESC",
+      "revision": "A",
+      "known_at": "2026-03-15",
+      "handling": ["PUBLIC", "SYNTHETIC"]
+    },
+    {
+      "file": "change-notices.csv",
+      "format": "change_notice_csv",
+      "document_id": "SYNTH-CTRL-ECN",
+      "revision": "A",
+      "known_at": "2026-05-10",
+      "handling": ["PUBLIC", "SYNTHETIC"]
+    }
+  ]
+}

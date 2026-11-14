@@ -1,0 +1,6 @@
+# STRIX
+## Structured Traceability, Retrieval, and Intelligence eXtraction
+
+It sounds like a serious intelligence system, and Strix is associated with owls—observation, knowledge, and seeing what others miss.
+
+ATLASSIAN_TEAM_LINK=https://blkpvnthr-strix.atlassian.net?continue=https%3A%2F%2Fblkpvnthr-strix.atlassian.net%2Fwelcome%2Fsoftware&atlOrigin=eyJpIjoiODk2YWM1MGU0MzQ0NDY3YWE0N2IyN2Y1NjViNWUyYzUiLCJwIjoiaiJ9

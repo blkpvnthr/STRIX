@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC DEMONSTRATION DATA - fictional SYNTH-CTRL system; not a real product, program, or standard. -->
+<REQ-IF xmlns="http://www.omg.org/spec/ReqIF/20110401/reqif.xsd">
+  <THE-HEADER>
+    <REQ-IF-HEADER IDENTIFIER="SYNTH-CTRL-REQ">
+      <COMMENT>Synthetic demonstration requirements for the fictional SYNTH-CTRL system.</COMMENT>
+      <TITLE>SYNTH-CTRL Requirements Baseline</TITLE>
+    </REQ-IF-HEADER>
+  </THE-HEADER>
+  <CORE-CONTENT>
+    <REQ-IF-CONTENT>
+      <SPEC-OBJECTS>
+        <SPEC-OBJECT IDENTIFIER="REQ-101">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The system shall maintain coolant temperature between 20 C and 45 C."/>
+          </VALUES>
+        </SPEC-OBJECT>
+        <SPEC-OBJECT IDENTIFIER="REQ-102">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The primary controller shall poll each sensor at least once per 100 ms."/>
+          </VALUES>
+        </SPEC-OBJECT>
+        <SPEC-OBJECT IDENTIFIER="REQ-103">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The coolant pump shall provide a flow rate of at least 12 L/min."/>
+          </VALUES>
+        </SPEC-OBJECT>
+        <SPEC-OBJECT IDENTIFIER="REQ-104">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The flow control valve shall close fully within 2 s of a shutdown command."/>
+          </VALUES>
+        </SPEC-OBJECT>
+        <SPEC-OBJECT IDENTIFIER="REQ-105">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The operator panel shall display current pressure and temperature."/>
+          </VALUES>
+        </SPEC-OBJECT>
+        <SPEC-OBJECT IDENTIFIER="REQ-106">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The system shall log every pressure reading above 8 bar."/>
+          </VALUES>
+        </SPEC-OBJECT>
+        <SPEC-OBJECT IDENTIFIER="REQ-107">
+          <VALUES>
+            <ATTRIBUTE-VALUE-STRING THE-VALUE="The backup controller shall assume control within 500 ms of primary failure."/>
+          </VALUES>
+        </SPEC-OBJECT>
+      </SPEC-OBJECTS>
+    </REQ-IF-CONTENT>
+  </CORE-CONTENT>
+</REQ-IF>

@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-08-08T12:00:00+00:00",
+  "failures": [],
+  "rejected_claim_ids": [],
+  "status": "passed",
+  "verified_claim_ids": [
+    "CL-03d483aef9c0"
+  ],
+  "verifier_version": "1.0.0"
+}

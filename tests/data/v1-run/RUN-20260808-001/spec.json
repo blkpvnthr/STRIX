@@ -1,0 +1,12 @@
+{
+  "as_of_date": "2026-08-08",
+  "company_id": "demo-company-000001",
+  "company_name": "Demonstration Company",
+  "historical_periods": [
+    "2025-Q2",
+    "2026-Q2"
+  ],
+  "pipeline_version": "0.1.0",
+  "question": "Is operating profitability improving?",
+  "ticker": "DEMO"
+}

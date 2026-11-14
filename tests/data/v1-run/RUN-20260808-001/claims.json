@@ -1,0 +1,35 @@
+[
+  {
+    "claim_id": "CL-03d483aef9c0",
+    "claim_type": "profitability_change",
+    "direction": "increased",
+    "evidence_ids": [
+      "EV-9d33ded8a427",
+      "EV-649d8a693225",
+      "EV-d1e9faaf6787"
+    ],
+    "numeric_assertions": [
+      {
+        "asserted_value": "0.084",
+        "evidence_id": "EV-9d33ded8a427",
+        "metric": "operating_margin",
+        "unit": "ratio"
+      },
+      {
+        "asserted_value": "0.101",
+        "evidence_id": "EV-649d8a693225",
+        "metric": "operating_margin",
+        "unit": "ratio"
+      },
+      {
+        "asserted_value": "1.7",
+        "evidence_id": "EV-d1e9faaf6787",
+        "metric": "operating_margin_change_pp",
+        "unit": "percentage_points"
+      }
+    ],
+    "statement": "Operating margin increased from 8.4% to 10.1%, an improvement of 1.7 percentage points.",
+    "status": "verified",
+    "subject_id": "demo-company-000001"
+  }
+]
