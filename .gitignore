@@ -25,6 +25,10 @@ site/
 
 # Local research run artifacts (runtime state, never committed)
 research_runs/
+ pyproject.toml
+
+# Immutable corpus snapshots (runtime state, never committed)
+corpus_snapshots/
 
 # Environment files
 .txt

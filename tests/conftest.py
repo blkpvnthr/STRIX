@@ -42,13 +42,20 @@ def compute_demo(spec: ResearchSpec, raw: bytes) -> DeterministicOutcome:
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fail loudly if anything attempts to open a network socket."""
+    """Fail loudly if anything attempts a socket or a DNS resolution.
+
+    ``getaddrinfo`` is a separate libc call from socket construction — a
+    resolver that only calls it (strix.corpus.acquisition.network_safety.
+    SystemResolver) would not have been caught by patching socket()/
+    create_connection() alone, so it is patched too.
+    """
 
     def guard(*args: object, **kwargs: object) -> object:
         raise RuntimeError("network access is forbidden in the STRIX test suite")
 
     monkeypatch.setattr(socket, "socket", guard)
     monkeypatch.setattr(socket, "create_connection", guard)
+    monkeypatch.setattr(socket, "getaddrinfo", guard)
 
 
 @pytest.fixture

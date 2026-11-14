@@ -4,6 +4,7 @@ site_description: >-
   Evidence-grounded research CLI with verifiable source-to-claim lineage.
 site_url: ""
 use_directory_urls: true
+docs_dir: architecture
 
 theme:
   name: material
@@ -33,7 +34,7 @@ theme:
     - toc.follow
 
 extra_css:
-  - assets/stylesheets/extra.css
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
@@ -60,14 +61,14 @@ nav:
       - Quickstart: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
   - Architecture:
-      - Overview: architecture/overview.md
-      - Execution flow: architecture/execution-flow.md
-      - Evidence model: architecture/evidence-model.md
-      - Provenance: architecture/provenance.md
-      - Deterministic boundary: architecture/deterministic-boundary.md
-      - LLM boundary: architecture/llm-boundary.md
-      - Storage: architecture/storage.md
-      - Security: architecture/security.md
+      - Overview: overview.md
+      - Execution flow: execution-flow.md
+      - Evidence model: evidence-model.md
+      - Provenance: provenance.md
+      - Deterministic boundary: deterministic-boundary.md
+      - LLM boundary: llm-boundary.md
+      - Storage: storage.md
+      - Security: security.md
   - Usage:
       - Interactive mode: usage/interactive-mode.md
       - Command reference: usage/command-reference.md
@@ -81,6 +82,7 @@ nav:
       - Adding calculations: development/adding-calculations.md
       - Adding reasoners: development/adding-reasoners.md
       - Roadmap: development/roadmap.md
+      - Neuro-symbolic platform: development/neuro-symbolic-platform.md
   - Reference:
       - Data models: reference/data-models.md
       - Artifact formats: reference/artifact-formats.md
