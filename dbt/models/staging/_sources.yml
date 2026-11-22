@@ -1,0 +1,42 @@
+version: 2
+
+sources:
+  - name: warehouse
+    description: >
+      The STRIX DE-4 analytical warehouse (DuckDB operational / Snowflake optional).
+      Tables live in the catalog's `main` schema; `database` defaults to the attached
+      warehouse file (target.database), so this source is portable across warehouse
+      paths. These are the ONLY inputs to the transformation layer — dbt never reads
+      Bronze/Silver directly; lineage back to Bronze is resolved by the warehouse.
+    database: "{{ target.database }}"
+    schema: main
+    tables:
+      - name: fact_market_bars
+        description: One daily OHLCV bar per (symbol, session_date).
+      - name: fact_company_financials
+        description: One reported SEC Company Facts observation (by filing).
+      - name: fact_economic_observations
+        description: One economic observation (BLS/FRED, with vintage where present).
+      - name: fact_treasury_yields
+        description: One par yield per (observation_date, tenor).
+      - name: fact_pipeline_runs
+        description: One row per Silver publication loaded into the warehouse.
+      - name: dim_instrument
+        description: One row per traded instrument.
+      - name: dim_company
+        description: One row per SEC filer (CIK).
+      - name: dim_economic_series
+        description: One row per economic series.
+      - name: dim_source
+        description: One row per data source.
+      - name: dim_evidence
+        description: One row per Bronze artifact referenced by facts.
+      - name: dim_sector
+        description: Static SPDR sector mapping (sector_code -> sector_name).
+      - name: fact_research_claims
+        description: >
+          Schema-only placeholder for research claims (populated in DE-7). Read by
+          mart_research_quality to report genuinely-available counts (0 until DE-7).
+      - name: fact_verification_results
+        description: >
+          Schema-only placeholder for verification results (populated in DE-7).

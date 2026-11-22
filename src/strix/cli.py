@@ -181,6 +181,70 @@ def _build_warehouse_parser(
         _common(p)
 
 
+def _build_transform_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    """`strix transform` — dbt transformation layer over the warehouse (DE-5)."""
+    tf = subparsers.add_parser(
+        "transform",
+        help="dbt transformations: init, run, test, build, status, profile, lineage, "
+        "docs, validate",
+        description=(
+            "Run the STRIX dbt transformation layer (staging -> intermediate -> marts) "
+            "over the analytical warehouse. DuckDB is the operational backend; Snowflake "
+            "is optional. dbt is invoked with controlled, validated arguments only — no "
+            "raw SQL or shell is exposed. `validate` independently recomputes supported "
+            "mart values from preserved evidence with the Decimal calculators."
+        ),
+    )
+    sub = tf.add_subparsers(dest="transform_command", required=True)
+
+    def _common(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--lakehouse-dir", dest="lakehouse_dir", metavar="PATH", default=None)
+        parser.add_argument("--db-path", dest="db_path", metavar="PATH", default=None)
+        parser.add_argument("--project-dir", dest="project_dir", metavar="PATH", default=None)
+        parser.add_argument("--backend", default="duckdb", choices=["duckdb", "snowflake"])
+        parser.add_argument("--timeout", type=float, default=None, metavar="SECONDS")
+        parser.add_argument("--json", action="store_true")
+
+    init = sub.add_parser("init", help="write profile, prepare schema, seed, parse")
+    init.add_argument("--with-deps", action="store_true", help="run `dbt deps` (needs network)")
+    _common(init)
+
+    for name, helptext in (
+        ("run", "run models"),
+        ("test", "run data tests"),
+        ("build", "run + test (and seed/snapshot) in DAG order"),
+    ):
+        p = sub.add_parser(name, help=helptext)
+        p.add_argument("--select", default=None, metavar="SELECTION")
+        p.add_argument("--full-refresh", action="store_true",
+                       help="rebuild incremental models from scratch (destructive)")
+        _common(p)
+
+    docs = sub.add_parser("docs", help="generate dbt documentation + lineage artifacts")
+    _common(docs)
+
+    lineage = sub.add_parser("lineage", help="show a model's upstream dependency chain")
+    lineage.add_argument("--select", required=True, metavar="MODEL")
+    _common(lineage)
+
+    validate = sub.add_parser(
+        "validate", help="independently cross-validate mart values vs Decimal recompute"
+    )
+    validate.add_argument("--symbol", default=None, help="instrument for return/vol/drawdown")
+    validate.add_argument("--pair", default=None, metavar="A,B", help="correlation pair")
+    validate.add_argument("--cik", default=None, help="SEC filer for margin checks")
+    _common(validate)
+
+    for name, helptext in (
+        ("status", "model counts by layer + source publications"),
+        ("profile", "full model inventory (name, layer, materialization)"),
+    ):
+        p = sub.add_parser(name, help=helptext)
+        _common(p)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="strix",
@@ -252,6 +316,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_ingest_parser(subparsers)
     _build_normalize_parser(subparsers)
     _build_warehouse_parser(subparsers)
+    _build_transform_parser(subparsers)
 
     engineer_parser = subparsers.add_parser(
         "engineer",
@@ -342,6 +407,10 @@ def main(
             from strix.lakehouse.warehouse.cli import run_warehouse
 
             return run_warehouse(args, out=out, err=err)
+        if args.command == "transform":
+            from strix.lakehouse.transform.cli import run_transform
+
+            return run_transform(args, out=out, err=err, environ=environ)
         if args.command == "engineer":
             return _cmd_engineer_compile(args, state_dir, out, err, clock)
         return _cmd_research(

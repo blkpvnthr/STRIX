@@ -1,0 +1,97 @@
+version: 2
+
+models:
+  - name: stg_market_bars
+    description: "Daily OHLCV bars, standardized. Prices preserved exactly; no adjustment applied."
+    columns:
+      - name: silver_natural_key
+        description: Upstream Silver natural key (fact grain). Unique, not null.
+        data_tests: [unique, not_null]
+      - name: instrument_symbol
+        data_tests: [not_null]
+      - name: session_date
+        data_tests: [not_null]
+      - name: close_price
+        data_tests: [not_null]
+      - name: bronze_artifact_id
+        description: Lineage anchor back to the Bronze artifact.
+        data_tests: [not_null]
+
+  - name: stg_company_financials
+    description: "SEC Company Facts observations, standardized. Reported units preserved."
+    columns:
+      - name: silver_natural_key
+        data_tests: [unique, not_null]
+      - name: cik
+        data_tests: [not_null]
+      - name: concept
+        data_tests: [not_null]
+      - name: period_end
+        data_tests: [not_null]
+      - name: filed_date
+        description: Known-availability date; must not precede period_end (no look-ahead).
+        data_tests: [not_null]
+      - name: value
+        data_tests: [not_null]
+      - name: period_kind
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['instant', 'duration']}
+
+  - name: stg_economic_observations
+    description: "Economic observations (BLS + FRED), standardized. Feeds kept distinct."
+    columns:
+      - name: silver_natural_key
+        data_tests: [unique, not_null]
+      - name: series_id
+        data_tests: [not_null]
+      - name: observation_date
+        data_tests: [not_null]
+
+  - name: stg_treasury_yields
+    description: "Treasury par yields, standardized. yield_pct is in percent."
+    columns:
+      - name: silver_natural_key
+        data_tests: [unique, not_null]
+      - name: observation_date
+        data_tests: [not_null]
+      - name: tenor
+        data_tests: [not_null]
+      - name: yield_pct
+        data_tests: [not_null]
+
+  - name: stg_pipeline_runs
+    description: "Warehouse load provenance (one row per Silver publication loaded)."
+    columns:
+      - name: silver_publication_id
+        data_tests: [unique, not_null]
+
+  - name: stg_instruments
+    description: "Instrument dimension, standardized."
+    columns:
+      - name: instrument_symbol
+        data_tests: [unique, not_null]
+
+  - name: stg_companies
+    description: "Company dimension, standardized."
+    columns:
+      - name: cik
+        data_tests: [unique, not_null]
+
+  - name: stg_economic_series
+    description: "Economic series dimension, standardized."
+    columns:
+      - name: series_id
+        data_tests: [not_null]
+
+  - name: stg_sources
+    description: "Source dimension, standardized."
+    columns:
+      - name: source_code
+        data_tests: [unique, not_null]
+
+  - name: stg_evidence
+    description: "Evidence dimension: one row per Bronze artifact referenced by facts."
+    columns:
+      - name: evidence_id
+        data_tests: [unique, not_null]

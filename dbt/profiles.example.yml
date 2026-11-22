@@ -1,0 +1,37 @@
+# Example dbt profile for the STRIX transformation layer.
+#
+# `strix transform init` renders a real profiles.yml (gitignored) into the dbt/
+# directory from this template, substituting the resolved warehouse path. You can
+# also copy this file to ~/.dbt/profiles.yml or dbt/profiles.yml and manage it
+# yourself. No credentials are stored here; Snowflake credentials, when used,
+# come exclusively from SNOWFLAKE_* environment variables via env_var().
+#
+# DuckDB is the required operational backend. Snowflake is optional.
+
+strix:
+  # `strix transform` selects the target with --backend (default: duckdb).
+  target: duckdb
+  outputs:
+
+    duckdb:
+      type: duckdb
+      # Path to the STRIX analytical warehouse DuckDB file. `strix transform init`
+      # fills this in with the resolved path (STRIX_LAKEHOUSE_DIR/warehouse/strix.duckdb
+      # by default). Here it reads an env var so the committed example stays portable.
+      path: "{{ env_var('STRIX_WAREHOUSE_DB', 'warehouse/strix.duckdb') }}"
+      threads: 1
+      # Keep extensions local; no network install required for core transforms.
+      extensions: []
+
+    snowflake:
+      # Optional, offline-compiled target. Live execution requires credentials in
+      # the environment; nothing here is committed with a secret value.
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', '') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'STRIX_RESEARCH') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'STRIX') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'STRIX_WH') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'ANALYTICS') }}"
+      threads: 1

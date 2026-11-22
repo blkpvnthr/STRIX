@@ -44,6 +44,17 @@ lakehouse = [
 snowflake = [
     "snowflake-connector-python>=3.0",
 ]
+# dbt transformation layer (DE-5). DuckDB adapter is operational; dbt-snowflake is
+# optional. pathspec is pinned to satisfy both dbt-core (<1.1) and mypy (>=1.0).
+dbt = [
+    "dbt-core>=1.11,<1.13",
+    "dbt-duckdb>=1.9,<1.12",
+    "pathspec>=1.0,<1.1",
+]
+# Optional dbt Snowflake adapter (offline-compiled; live run needs credentials).
+dbt-snowflake = [
+    "dbt-snowflake>=1.9,<1.13",
+]
 # Web interface: FastAPI Research API + SSE progress (Phase 5).
 web = [
     "fastapi>=0.110",

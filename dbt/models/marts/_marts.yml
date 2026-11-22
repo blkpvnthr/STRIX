@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  # ---- markets ----------------------------------------------------------
+  - name: mart_market_overview
+    description: "Latest-session snapshot for major index ETF proxies (NOT market breadth)."
+    columns:
+      - name: instrument_symbol
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ['SPY', 'QQQ', 'DIA', 'IWM']}
+
+  - name: mart_instrument_performance
+    description: "Trailing total-return (adjustment=all) performance per instrument."
+    columns:
+      - name: instrument_symbol
+        data_tests: [unique, not_null]
+
+  - name: mart_market_volatility
+    description: "Rolling annualized realized volatility (sample stddev of log returns)."
+    columns:
+      - name: instrument_symbol
+        data_tests: [unique, not_null]
+
+  - name: mart_market_drawdown
+    description: "Drawdown summary over each instrument's full window."
+    columns:
+      - name: instrument_symbol
+        data_tests: [unique, not_null]
+      - name: max_drawdown
+        description: Non-positive ratio in [-1, 0].
+        data_tests:
+          - strix_in_range:
+              arguments: {min_value: -1, max_value: 0}
+      - name: current_drawdown
+        data_tests:
+          - strix_in_range:
+              arguments: {min_value: -1, max_value: 0}
+
+  - name: mart_sector_rotation
+    description: "Absolute and SPY-relative sector ETF performance with coverage flags."
+    columns:
+      - name: sector_code
+        data_tests: [unique, not_null]
+
+  # ---- fundamentals -----------------------------------------------------
+  - name: mart_company_fundamentals
+    description: "First-filed SEC fundamentals aligned per reporting period."
+    columns:
+      - name: period_type
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['instant', 'quarter', 'annual', 'ytd', 'other']}
+    data_tests:
+      - strix_no_lookahead:
+          arguments: {available_date: filed_date, event_date: period_end}
+      - strix_unique_combination:
+          arguments:
+            combination_of_columns: [cik, fiscal_year, fiscal_period, period_end, period_type]
+
+  - name: mart_financial_ratios
+    description: "Financial ratios in long form with full provenance and status."
+    columns:
+      - name: ratio_name
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['gross_profit_margin', 'operating_margin', 'net_profit_margin',
+                         'return_on_equity', 'debt_to_equity', 'current_ratio',
+                         'operating_cash_flow_margin', 'free_cash_flow',
+                         'revenue_growth', 'operating_income_growth']
+      - name: calculation_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['computed', 'insufficient_data', 'undefined_zero_denominator']
+
+  # ---- macroeconomics ---------------------------------------------------
+  - name: mart_macro_conditions
+    description: "Per-series macro conditions; series never combined."
+    columns:
+      - name: observation_date
+        data_tests: [not_null]
+
+  - name: mart_yield_curve
+    description: "Treasury curve spreads/changes; pp and bps kept distinct."
+    columns:
+      - name: observation_date
+        data_tests: [unique, not_null]
+
+  # ---- research ---------------------------------------------------------
+  - name: mart_historical_regimes
+    description: "Descriptive regime features; no prediction, no causality."
+    columns:
+      - name: instrument_symbol
+        data_tests: [unique, not_null]
+
+  - name: mart_equity_correlations
+    description: "Aligned-session Pearson return correlations with methodology metadata."
+    columns:
+      - name: return_correlation
+        data_tests:
+          - strix_in_range:
+              arguments: {min_value: -1, max_value: 1}
+
+  - name: mart_research_quality
+    description: "Warehouse-resident research/verification counts (deferred to DE-7)."
+    columns:
+      - name: integration_status
+        data_tests: [not_null]
