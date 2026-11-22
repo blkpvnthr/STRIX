@@ -17,7 +17,7 @@ from tests.research.research_fixtures import (
 )
 
 from strix.corpus.parsers.registry import default_registry, parse_corpus
-from strix.corpus.scanner import scan_corpus
+from strix.corpus.scanner import DEFAULT_EVIDENCE_ROOT, scan_corpus
 from strix.corpus.snapshot import CorpusStore
 from strix.errors import CandidatePoolTooLargeError, CorpusMismatchError, RetrievalIntegrityError
 from strix.research.models import DocumentFilter, ExclusionReason, RetrievalBudget
@@ -358,7 +358,15 @@ def test_end_to_end_through_real_scan_snapshot_and_parse(tmp_path: Path) -> None
     assert len(trace.selected_chunk_ids) == 1
 
 
+# Contents of the real default evidence root at import time. The corpus
+# subsystem's default root happens to be the repository docs directory, so it may
+# legitimately contain documentation; the guard below tolerates that and instead
+# asserts these tests ADD nothing to it (they must use tmp_path only).
+_EVIDENCE_BASELINE = (
+    set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
+)
+
+
 def test_nothing_in_this_module_touches_the_real_evidence_root() -> None:
-    real_docs = Path("/Users/blkpvnthr/STRIX/docs")
-    before = set(real_docs.iterdir()) if real_docs.exists() else set()
-    assert before == set()
+    current = set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
+    assert current <= _EVIDENCE_BASELINE, "tests must not write into the real evidence root"

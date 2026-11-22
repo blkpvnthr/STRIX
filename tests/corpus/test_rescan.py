@@ -11,7 +11,7 @@ import pytest
 
 from strix.corpus.models import DocumentChangeType
 from strix.corpus.rescan import rescan
-from strix.corpus.scanner import scan_corpus
+from strix.corpus.scanner import DEFAULT_EVIDENCE_ROOT, scan_corpus
 from strix.corpus.snapshot import CorpusStore
 from strix.errors import CorpusSnapshotIntegrityError
 
@@ -139,7 +139,14 @@ def test_tampered_prior_snapshot_is_detected_not_silently_diffed(tmp_path: Path)
 # --------------------------------------------------------------------------
 
 
+# Real default evidence-root contents at import time (may hold documentation,
+# since the corpus default root is the docs directory). The guard tolerates that
+# and asserts these tests ADD nothing — they must use tmp_path only.
+_EVIDENCE_BASELINE = (
+    set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
+)
+
+
 def test_nothing_in_this_module_touches_the_real_evidence_root() -> None:
-    real_docs = Path("/Users/blkpvnthr/STRIX/docs")
-    before = set(real_docs.iterdir()) if real_docs.exists() else set()
-    assert before == set()
+    current = set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
+    assert current <= _EVIDENCE_BASELINE, "tests must not write into the real evidence root"
