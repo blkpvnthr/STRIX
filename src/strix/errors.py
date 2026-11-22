@@ -220,6 +220,57 @@ class IncompleteCorpusPolicyError(ResearchError):
     the incompleteness as a warning rather than refusing outright."""
 
 
+class AgentError(StrixError):
+    """Base class for the OpenAI research-agent subsystem (strix.agent).
+
+    A sibling of ResearchError/CorpusError, not a subclass — strix.agent is a
+    distinct subsystem layered on the rest of STRIX."""
+
+
+class AgentConfigError(AgentError):
+    """Agent configuration is missing or invalid: absent API key, unknown
+    model, a non-positive limit, or an out-of-range reasoning effort. Raised
+    before any network call so misconfiguration never silently degrades."""
+
+
+class ModelUnavailableError(AgentConfigError):
+    """The configured model is not available to this API key. The agent never
+    silently falls back to a different (more expensive) model."""
+
+
+class ProviderError(AgentError):
+    """An OpenAI API call failed in a way the agent could not recover from
+    within its retry budget: authentication, a persistent server error, a
+    refusal, or an exhausted-retry rate limit/timeout."""
+
+
+class ProviderTimeoutError(ProviderError):
+    """A bounded provider request timed out after its allowed retries."""
+
+
+class ProviderRateLimitError(ProviderError):
+    """The provider rate-limited the request beyond the retry budget."""
+
+
+class BudgetExceededError(AgentError):
+    """A configured research budget was exhausted: model calls, tool calls,
+    output tokens, wall-clock seconds, or estimated USD cost. The orchestrator
+    stops and returns whatever verified findings it already has."""
+
+
+class ToolError(AgentError):
+    """A research tool could not be executed: unknown tool, invalid arguments,
+    or a disabled/unpermitted tool. Tool *data* unavailability is reported as a
+    structured unavailable-source result, not raised."""
+
+
+class ResponseValidationError(AgentError):
+    """The synthesized final answer failed fail-closed validation: an
+    unresolved citation, a number that matches no accepted calculation, a
+    rejected claim presented as fact, or an unsupported assertion. The answer
+    is withheld rather than displayed as verified."""
+
+
 def error_code(exc: StrixError) -> str:
     """Machine-readable snake_case code for a typed error (CLI output)."""
     name = type(exc).__name__

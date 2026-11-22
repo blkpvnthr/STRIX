@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strix"
-version = "0.1.0"
+version = "0.2.0"
 description = "STRIX — Structured Traceability, Retrieval, and Intelligence eXtraction. Evidence-grounded research CLI (synthetic demonstration)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,8 @@ license = { text = "Proprietary" }
 authors = [{ name = "BLKPVNTHR" }]
 dependencies = [
     "pydantic>=2.5",
+    # OpenAI research agent (Responses API). 1.66+ ships responses.create.
+    "openai>=1.66",
 ]
 
 [project.optional-dependencies]
@@ -32,11 +34,19 @@ docs = [
 acquisition = [
     "httpx>=0.27",
 ]
+# Web interface: FastAPI Research API + SSE progress (Phase 5).
+web = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "sse-starlette>=2.0",
+    "httpx>=0.27",
+]
 
 [project.scripts]
 strix = "strix.cli:main"
 strix-service = "strix.service:serve"
 strix-demo-fixture = "strix.market.fixture:main"
+strix-agent-diagnostics = "strix.agent.diagnostics:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strix"]

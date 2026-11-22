@@ -101,6 +101,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="directory containing the run (same default as the root command)",
     )
 
+    ask_parser = subparsers.add_parser(
+        "ask",
+        help="ask an evidence-verified research question (OpenAI research agent)",
+        description=(
+            "Research a natural-language question about markets, securities, or "
+            "economic conditions using the STRIX OpenAI research agent. Retrieves "
+            "real data, independently recomputes every quantitative claim from "
+            "preserved observations, and prints a cited, verified answer. Requires "
+            "an OpenAI API key in the environment or .env."
+        ),
+    )
+    ask_parser.add_argument("question", metavar="QUESTION", help="the research question")
+    ask_parser.add_argument(
+        "--as-of",
+        metavar="DATE",
+        default=None,
+        help="observation cutoff date (ISO, e.g. 2026-11-22; default: today)",
+    )
+    ask_parser.add_argument(
+        "--state-dir",
+        metavar="PATH",
+        default=argparse.SUPPRESS,
+        dest="state_dir",
+        help="directory for research run artifacts (same default as the root command)",
+    )
+
     engineer_parser = subparsers.add_parser(
         "engineer",
         help="engineering data compiler (synthetic demonstration mode)",
@@ -176,6 +202,8 @@ def main(
     try:
         if args.command == "replay":
             return _cmd_replay(args.run_id, state_dir, out, err, reasoner)
+        if args.command == "ask":
+            return _cmd_ask(args, state_dir, out, err)
         if args.command == "engineer":
             return _cmd_engineer_compile(args, state_dir, out, err, clock)
         return _cmd_research(
@@ -341,6 +369,16 @@ def _cmd_replay(
     # manifests are extra="forbid" and carry no "mode" key, so old on-disk
     # runs take the v1 path unchanged.
     raw_manifest = RunStore(state_dir).load_json(run_id, "manifest.json")
+    if isinstance(raw_manifest, dict) and raw_manifest.get("mode") == "agent_research":
+        from strix.agent.replay import replay_agent_run
+
+        try:
+            agent_outcome = replay_agent_run(run_id, state_dir)
+        except StrixError as exc:
+            err.write(f"Error [{error_code(exc)}]: {exc}\n")
+            return 1
+        out.write(_agent_replay_text(agent_outcome))
+        return 0 if agent_outcome.passed else 1
     if isinstance(raw_manifest, dict) and raw_manifest.get("mode") == "engineering":
         from strix.engineering.replay import replay_engineering_run
 
@@ -354,6 +392,79 @@ def _cmd_replay(
     v1_outcome = replay_run(run_id, state_dir, reasoner=reasoner)
     out.write(replay_text(v1_outcome))
     return 0 if v1_outcome.passed else 1
+
+
+# --------------------------------------------------------------------------
+# Research agent (ask) command
+# --------------------------------------------------------------------------
+
+
+def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO) -> int:
+    from strix.agent.config import AgentConfig
+    from strix.agent.orchestrator import run_research_question
+    from strix.agent.response_builder import render_answer
+    from strix.errors import AgentError
+
+    try:
+        config = AgentConfig.load()
+    except AgentError as exc:
+        err.write(f"Error [{error_code(exc)}]: {exc}\n")
+        return 1
+
+    as_of = None
+    if args.as_of:
+        try:
+            as_of = date.fromisoformat(args.as_of)
+        except ValueError:
+            err.write(f"Error: invalid --as-of {args.as_of!r}; expected an ISO date\n")
+            return 1
+
+    out.write(BANNER + "\n")
+    out.write(f"Researching: {args.question}\n\n")
+
+    def progress(message: str) -> None:
+        out.write(f"  … {message}\n")
+        out.flush()
+
+    try:
+        outcome = run_research_question(
+            args.question,
+            config=config,
+            state_dir=state_dir,
+            as_of=as_of,
+            progress=progress,
+        )
+    except AgentError as exc:
+        err.write(f"\nError [{error_code(exc)}]: {exc}\n")
+        return 1
+
+    out.write("\n" + render_answer(outcome.answer))
+    usage = outcome.usage
+    out.write(
+        f"\nUsage: {usage.model_calls} model calls, {usage.tool_calls} tool calls, "
+        f"{usage.usage.input_tokens} in / {usage.usage.output_tokens} out tokens, "
+        f"est. ${usage.estimated_cost_usd} ({usage.elapsed_seconds}s)\n"
+    )
+    return 0
+
+
+def _agent_replay_text(outcome: object) -> str:
+    from strix.agent.replay import AgentReplayOutcome
+
+    assert isinstance(outcome, AgentReplayOutcome)
+    lines = [f"Replay of {outcome.run_id}: {'PASS' if outcome.passed else 'FAIL'}", ""]
+    for claim in outcome.claims:
+        mark = "ok" if claim.matches else "MISMATCH"
+        lines.append(
+            f"  [{mark}] {claim.claim_id}: {claim.recomputed_status} "
+            f"(stored {claim.stored_status})"
+            + (
+                f"; recomputed {claim.recomputed_value} (stored {claim.stored_value})"
+                if claim.recomputed_value is not None
+                else ""
+            )
+        )
+    return "\n".join(lines) + "\n"
 
 
 # --------------------------------------------------------------------------

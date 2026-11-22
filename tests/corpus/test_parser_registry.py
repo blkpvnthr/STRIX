@@ -10,7 +10,7 @@ from pathlib import Path
 from strix.corpus.parsers.models import ParseFailureCode, ParseStatus
 from strix.corpus.parsers.registry import ParserRegistry, default_registry, parse_corpus
 from strix.corpus.parsers.text_parser import TextParser
-from strix.corpus.scanner import scan_corpus
+from strix.corpus.scanner import DEFAULT_EVIDENCE_ROOT, scan_corpus
 from strix.corpus.snapshot import CorpusStore
 
 
@@ -151,10 +151,19 @@ def test_tampered_snapshot_bytes_are_detected_as_a_hash_mismatch(tmp_path: Path)
 # --------------------------------------------------------------------------
 
 
+# Real default evidence-root contents at import time (may hold documentation,
+# since the corpus default root is the docs directory).
+_EVIDENCE_BASELINE = (
+    set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
+)
+
+
 def test_nothing_in_this_module_touches_the_real_evidence_root() -> None:
-    real_docs = Path("/Users/blkpvnthr/STRIX/docs")
-    before = set(real_docs.iterdir()) if real_docs.exists() else set()
+    before = set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
     registry = default_registry()
     registry.register(TextParser())  # exercise registration again, still no I/O
-    after = set(real_docs.iterdir()) if real_docs.exists() else set()
-    assert before == after == set()
+    after = set(DEFAULT_EVIDENCE_ROOT.iterdir()) if DEFAULT_EVIDENCE_ROOT.exists() else set()
+    # Registration performs no evidence-root I/O, and this module adds nothing to
+    # the real root (tolerating pre-existing documentation it may contain).
+    assert before == after, "registry construction must not perform evidence-root I/O"
+    assert after <= _EVIDENCE_BASELINE, "tests must not write into the real evidence root"
