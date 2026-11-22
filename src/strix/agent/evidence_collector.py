@@ -114,6 +114,10 @@ class EvidenceCollector:
     def all_series(self) -> tuple[ObservationSeries, ...]:
         return tuple(self._series.values())
 
+    def all_artifacts(self) -> dict[str, bytes]:
+        """Content-hash -> preserved raw bytes (copy)."""
+        return dict(self._artifacts)
+
 
 def classify_freshness(
     published_at: datetime | None,

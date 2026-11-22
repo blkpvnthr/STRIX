@@ -200,8 +200,10 @@ class AgentConfig(BaseModel):
             raise AgentConfigError(f"invalid agent configuration: {exc}") from exc
 
     def redacted(self) -> dict[str, object]:
-        """A dump safe to log/persist: no secret, pricing inlined."""
+        """A dump safe to log/persist: no secret, no floats (canonical-safe)."""
         data = self.model_dump(exclude={"api_key"})
+        # The canonical serializer forbids binary floats; stringify the one float.
+        data["request_timeout_seconds"] = str(data["request_timeout_seconds"])
         data["api_key"] = "***redacted***"
         return data
 
@@ -229,6 +231,17 @@ def parse_dotenv(text: str) -> dict[str, str]:
             value = value[1:-1]
         result[key] = value
     return result
+
+
+def merged_environment(
+    environ: Mapping[str, str] | None = None, *, dotenv_path: Path | None = None
+) -> dict[str, str]:
+    """Public helper: ``.env`` merged with the process env (process env wins).
+
+    Used by connectors that read their own credentials (e.g. Alpaca) so they see
+    the same ``.env`` the agent config loads from.
+    """
+    return _merged_env(environ, dotenv_path)
 
 
 def _default_dotenv_path() -> Path:
