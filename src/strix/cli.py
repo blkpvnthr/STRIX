@@ -101,6 +101,43 @@ def _build_ingest_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
         _common(p)
 
 
+def _build_normalize_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    """`strix normalize` — Bronze -> Silver transformation (DE-3)."""
+    normalize = subparsers.add_parser(
+        "normalize",
+        help="Silver normalization: run, status, verify, profile, reconcile, quarantine",
+        description=(
+            "Deterministically normalize immutable Bronze payloads into typed, "
+            "partitioned, quality-gated Parquet Silver datasets with full lineage, "
+            "observation-level deduplication, and source-to-Silver reconciliation."
+        ),
+    )
+    sub = normalize.add_subparsers(dest="normalize_command", required=True)
+
+    def _common(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--lakehouse-dir", dest="lakehouse_dir", metavar="PATH", default=None)
+        parser.add_argument("--json", action="store_true", help="machine-readable JSON output")
+
+    run = sub.add_parser("run", help="transform Bronze into Silver (full recompute)")
+    run.add_argument("--dataset", default="all", help="dataset name or 'all'")
+    run.add_argument("--start", default=None, metavar="YYYY-MM-DD")
+    run.add_argument("--end", default=None, metavar="YYYY-MM-DD")
+    _common(run)
+
+    for name, helptext in (
+        ("status", "published Silver datasets"),
+        ("verify", "re-verify published Parquet file integrity"),
+        ("profile", "per-dataset profile"),
+        ("reconcile", "source-to-Silver reconciliation reports"),
+        ("quarantine", "quarantined observations by reason"),
+    ):
+        p = sub.add_parser(name, help=helptext)
+        p.add_argument("--dataset", default="all")
+        _common(p)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="strix",
@@ -170,6 +207,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     _build_ingest_parser(subparsers)
+    _build_normalize_parser(subparsers)
 
     engineer_parser = subparsers.add_parser(
         "engineer",
@@ -252,6 +290,10 @@ def main(
             from strix.lakehouse.ingest.cli import run_ingest
 
             return run_ingest(args, out=out, err=err)
+        if args.command == "normalize":
+            from strix.lakehouse.silver.cli import run_normalize
+
+            return run_normalize(args, out=out, err=err)
         if args.command == "engineer":
             return _cmd_engineer_compile(args, state_dir, out, err, clock)
         return _cmd_research(
