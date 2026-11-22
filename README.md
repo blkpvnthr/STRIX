@@ -117,6 +117,12 @@ authoritative ratios, or override a failed check.
 
 ## OpenAI Research Agent (`strix ask` + web app)
 
+> **v0.2.0** (release candidate) — see [`CHANGELOG.md`](CHANGELOG.md), the
+> [release notes](docs/releases/v0.2.0.md), the
+> [release audit](docs/releases/v0.2.0-audit.md), and the
+> [research benchmark](docs/releases/v0.2.0-benchmark.md).
+
+
 STRIX now includes an **evidence-grounded OpenAI research agent** that answers
 natural-language questions about markets, securities, and economic conditions —
 and **independently recomputes every quantitative claim** before presenting it.
@@ -215,7 +221,9 @@ and retrieved dates, freshness, SHA-256 integrity, related claims):
   table, and enforced against `STRIX_AGENT_MAX_COST_USD`. The eight demonstration
   questions cost **~$0.015 total**; a typical run is a fraction of a cent.
 - **Security**: the API key never reaches the frontend; `.env` is gitignored;
-  prompt-injection from sources is defended in the system prompt and tests.
+  prompt-injection from sources is defended in the system prompt and tests. The
+  local web API binds `127.0.0.1` with localhost-only CORS and has **no
+  authentication** — it is a single-user local tool; do not expose the port.
 - **Verification is bounded and honest**: numerical recomputation and source
   integrity are strong; general natural-language entailment is *not* attempted.
   Without a FRED/BLS key, economic questions (CPI, Treasury yields) rely on web

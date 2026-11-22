@@ -11,7 +11,7 @@ discipline of the rest of the codebase.
 from __future__ import annotations
 
 #: Version stamped on agent research runs and reported by diagnostics.
-AGENT_VERSION = "0.1.0"
+AGENT_VERSION = "0.2.0"
 
 #: Identifier of the versioned system-instruction file (prompts/market_research.md).
 AGENT_INSTRUCTION_VERSION = "market_research/1.0.0"

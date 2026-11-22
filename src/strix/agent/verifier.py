@@ -224,15 +224,13 @@ def _verify_textual(
 
 
 def _text_present(needle: str, haystack: str) -> bool:
-    """Bounded presence check: the whole phrase, or a strong keyword overlap."""
-    if needle and needle in haystack:
-        return True
-    # Fall back to a conservative keyword-overlap test for lightly reworded text.
-    words = [w for w in needle.split() if len(w) > 3]
-    if len(words) < 3:
-        return False
-    hits = sum(1 for w in words if w in haystack)
-    return hits / len(words) >= 0.8
+    """Strict attribution check: the asserted phrase must appear verbatim in the
+    preserved excerpt (whitespace-normalized). No fuzzy/keyword matching — an
+    attribution is accepted only when the source demonstrably contains the text,
+    never on mere keyword overlap, so the verdict cannot over-claim."""
+    needle = " ".join(needle.split())
+    haystack = " ".join(haystack.split())
+    return bool(needle) and needle in haystack
 
 
 def _has_stale_evidence(claim: AgentClaim, collector: EvidenceCollector) -> bool:

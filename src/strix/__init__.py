@@ -5,13 +5,16 @@ traces through a typed lineage:
 
     SourceArtifact -> SourceFact -> CalculationResult -> Evidence -> Claim
 
-This first version is a fully offline synthetic demonstration: no real
-financial data is collected, no LLM is called, no investment advice is
-produced, and no trades can be placed.
+The v1 pipeline is a fully offline synthetic/SEC demonstration (no LLM). v0.2.0
+adds the evidence-grounded OpenAI research agent (``strix.agent``) and a web app,
+in which a language model only proposes claims an independent verifier must
+confirm. No investment advice is produced and no trades can be placed.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-# Version of the deterministic research pipeline contract. Recorded in every
-# ResearchSpec and RunManifest so replays can detect contract drift.
+# Version of the deterministic v1 research-pipeline *contract*. Recorded in every
+# v1 ResearchSpec and RunManifest so replays can detect contract drift. This is
+# intentionally independent of the release version (__version__): the v1 contract
+# has not changed in v0.2.0.
 PIPELINE_VERSION = "0.1.0"
