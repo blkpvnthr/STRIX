@@ -38,3 +38,7 @@ corpus_snapshots/
 
 # macOS
 .DS_Store
+
+# built web frontend
+web/dist/
+web/node_modules/

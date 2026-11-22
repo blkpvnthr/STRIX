@@ -66,6 +66,7 @@ def run_research_question(
     as_of: date | None = None,
     clock: Callable[[], datetime] | None = None,
     progress: ProgressFn | None = None,
+    cancel_check: Callable[[], bool] | None = None,
     sec_fetch: Any = None,
 ) -> ResearchOutcome:
     """Research one question end-to-end and persist the run."""
@@ -107,6 +108,7 @@ def run_research_question(
         now=now,
         emit=emit,
         limitations=limitations,
+        cancel_check=cancel_check,
     )
 
     emit("Independently verifying candidate claims")
@@ -169,12 +171,15 @@ def _run_loop(
     now: datetime,
     emit: ProgressFn,
     limitations: list[str],
+    cancel_check: Callable[[], bool] | None = None,
 ) -> str | None:
     """Drive the bounded tool loop. Returns an exhaustion reason or None."""
     model_input: Any = [{"role": "user", "content": question}]
     previous_id: str | None = None
 
     for step in range(config.max_model_calls):
+        if cancel_check is not None and cancel_check():
+            return "cancelled by user"
         try:
             budget.ensure_can_call_model()
         except BudgetExceededError as exc:
