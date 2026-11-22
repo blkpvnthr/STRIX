@@ -66,16 +66,19 @@ def replay_agent_run(run_id: str, state_dir: Path) -> AgentReplayOutcome:
     for original, replayed in zip(claims, recomputed, strict=True):
         stored_status = original.verification.status.value
         new_status = replayed.verification.status.value
-        stored_value = _value(original)
-        new_value = _value(replayed)
+        stored_dec = original.verification.computed_value
+        new_dec = replayed.verification.computed_value
+        # Compare values NUMERICALLY, not as strings: canonical persistence strips
+        # trailing zeros (-0.107510 -> -0.10751), which is numerically identical.
+        values_match = stored_dec == new_dec
         results.append(
             ClaimReplay(
                 claim_id=original.claim_id,
                 stored_status=stored_status,
                 recomputed_status=new_status,
-                stored_value=stored_value,
-                recomputed_value=new_value,
-                matches=(stored_status == new_status and stored_value == new_value),
+                stored_value=_value(original),
+                recomputed_value=_value(replayed),
+                matches=(stored_status == new_status and values_match),
             )
         )
     return AgentReplayOutcome(
