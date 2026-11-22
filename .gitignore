@@ -42,3 +42,7 @@ corpus_snapshots/
 # built web frontend
 web/dist/
 web/node_modules/
+
+# playwright MCP output
+.playwright-mcp/
+web/.playwright-mcp/
