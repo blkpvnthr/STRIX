@@ -46,3 +46,13 @@ web/node_modules/
 # playwright MCP output
 .playwright-mcp/
 web/.playwright-mcp/
+
+# v0.3.0 lakehouse / warehouse local data (never commit generated datasets or DBs)
+lakehouse/
+warehouse/
+*.duckdb
+*.duckdb.wal
+*.parquet
+dbt/target/
+dbt/dbt_packages/
+*.sqlite

@@ -271,6 +271,26 @@ class ResponseValidationError(AgentError):
     is withheld rather than displayed as verified."""
 
 
+class LakehouseError(StrixError):
+    """Base class for the data lakehouse subsystem (strix.lakehouse).
+
+    A sibling of AgentError/ResearchError — the lakehouse is a distinct
+    subsystem that preserves immutable raw evidence (Bronze), normalizes it
+    (Silver), and serves analytical marts (Gold)."""
+
+
+class LakehouseIntegrityError(LakehouseError):
+    """An immutability or integrity invariant was violated: a content-addressed
+    artifact already exists with different bytes, a read-back hash does not match
+    its recorded content hash, or a path would escape the lakehouse root. Never
+    silently repaired or overwritten."""
+
+
+class IngestionError(LakehouseError):
+    """A Bronze ingestion could not be completed or trusted (bad parameters,
+    unreadable payload, or a provenance inconsistency)."""
+
+
 def error_code(exc: StrixError) -> str:
     """Machine-readable snake_case code for a typed error (CLI output)."""
     name = type(exc).__name__

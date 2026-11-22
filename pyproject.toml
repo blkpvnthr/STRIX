@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strix"
-version = "0.2.0"
+version = "0.3.0.dev0"
 description = "STRIX — Structured Traceability, Retrieval, and Intelligence eXtraction. Evidence-grounded research CLI (synthetic demonstration)."
 readme = "README.md"
 requires-python = ">=3.11"
