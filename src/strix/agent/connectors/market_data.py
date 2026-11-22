@@ -21,8 +21,11 @@ from typing import Any
 
 from strix.agent.sources import BarPoint, BarsData, QuoteData, UnavailableSource
 
-_BARS_URL = "https://data.alpaca.markets/v2/stocks/{symbol}/bars"
-_LATEST_TRADE_URL = "https://data.alpaca.markets/v2/stocks/{symbol}/trades/latest"
+# Public endpoint templates (reused by the lakehouse ingestion extractors).
+ALPACA_BARS_URL = "https://data.alpaca.markets/v2/stocks/{symbol}/bars"
+ALPACA_LATEST_TRADE_URL = "https://data.alpaca.markets/v2/stocks/{symbol}/trades/latest"
+_BARS_URL = ALPACA_BARS_URL
+_LATEST_TRADE_URL = ALPACA_LATEST_TRADE_URL
 _TIMEOUT_SECONDS = 30
 _PROVIDER = "Alpaca Market Data"
 

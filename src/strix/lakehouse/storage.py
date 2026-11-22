@@ -35,6 +35,10 @@ class ObjectStore(Protocol):
         identical object already exists. Raise on a differing existing object."""
         ...
 
+    def iter_paths(self, prefix: str) -> list[str]:
+        """Return relative paths of all objects under ``prefix`` (sorted)."""
+        ...
+
 
 class LocalObjectStore:
     """Filesystem-backed immutable object store rooted at one directory."""
@@ -72,6 +76,17 @@ class LocalObjectStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         _write_atomic(path, data)
         return True
+
+    def iter_paths(self, prefix: str) -> list[str]:
+        base = self._resolve(prefix)
+        if not base.is_dir():
+            return []
+        root = self.root.resolve()
+        return sorted(
+            str(p.resolve().relative_to(root))
+            for p in base.rglob("*")
+            if p.is_file() and not p.name.startswith(".")
+        )
 
 
 def _write_atomic(path: Path, data: bytes) -> None:

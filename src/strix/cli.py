@@ -59,6 +59,48 @@ class _Cancelled(Exception):
     """User declined or ended input; exit cleanly with success."""
 
 
+def _build_ingest_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    """`strix ingest` — lakehouse Bronze ingestion (DE-2)."""
+    ingest = subparsers.add_parser(
+        "ingest",
+        help="lakehouse data ingestion: backfill, incremental, status, coverage, verify",
+        description=(
+            "Historical and incremental ingestion of authoritative source data into "
+            "the immutable Bronze layer. Operates on a lakehouse root "
+            "(--lakehouse-dir / STRIX_LAKEHOUSE_DIR / ./lakehouse)."
+        ),
+    )
+    sub = ingest.add_subparsers(dest="ingest_command", required=True)
+
+    def _common(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--lakehouse-dir", dest="lakehouse_dir", metavar="PATH", default=None)
+
+    def _universe(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--source", default="all", help="all | alpaca | sec_edgar | "
+                            "us_treasury | bls | fred (or a full <source>.<dataset> key)")
+        parser.add_argument("--symbols", default=None, help="comma-separated equity symbols")
+        parser.add_argument("--tickers", default=None, help="comma-separated SEC tickers")
+        parser.add_argument("--series", default=None, help="comma-separated FRED/BLS series ids")
+
+    bf = sub.add_parser("backfill", help="historical backfill over a date range")
+    bf.add_argument("--start", required=True, metavar="YYYY-MM-DD")
+    bf.add_argument("--end", default=None, metavar="YYYY-MM-DD", help="default: today")
+    _universe(bf)
+    _common(bf)
+
+    inc = sub.add_parser("incremental", help="ingest new data since the last checkpoint")
+    _universe(inc)
+    _common(inc)
+
+    for name, helptext in (
+        ("status", "show incremental checkpoints/watermarks"),
+        ("coverage", "summarize ingested dataset coverage"),
+        ("verify", "re-verify Bronze artifact integrity (hashes)"),
+    ):
+        p = sub.add_parser(name, help=helptext)
+        _common(p)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="strix",
@@ -126,6 +168,8 @@ def build_parser() -> argparse.ArgumentParser:
         dest="state_dir",
         help="directory for research run artifacts (same default as the root command)",
     )
+
+    _build_ingest_parser(subparsers)
 
     engineer_parser = subparsers.add_parser(
         "engineer",
@@ -204,6 +248,10 @@ def main(
             return _cmd_replay(args.run_id, state_dir, out, err, reasoner)
         if args.command == "ask":
             return _cmd_ask(args, state_dir, out, err)
+        if args.command == "ingest":
+            from strix.lakehouse.ingest.cli import run_ingest
+
+            return run_ingest(args, out=out, err=err)
         if args.command == "engineer":
             return _cmd_engineer_compile(args, state_dir, out, err, clock)
         return _cmd_research(
