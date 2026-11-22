@@ -47,12 +47,13 @@ web/node_modules/
 .playwright-mcp/
 web/.playwright-mcp/
 
-# v0.3.0 lakehouse / warehouse local data (never commit generated datasets or DBs)
-lakehouse/
-warehouse/
+# v0.3.0 lakehouse / warehouse local DATA (root-anchored so src/strix/lakehouse
+# and tests/lakehouse are still tracked; only generated datasets/DBs are ignored)
+/lakehouse/
+/warehouse/
 *.duckdb
 *.duckdb.wal
 *.parquet
-dbt/target/
-dbt/dbt_packages/
+/dbt/target/
+/dbt/dbt_packages/
 *.sqlite
