@@ -118,6 +118,14 @@ class EvidenceCollector:
         """Content-hash -> preserved raw bytes (copy)."""
         return dict(self._artifacts)
 
+    def put_evidence(self, evidence: AgentEvidence) -> None:
+        """Insert a prebuilt evidence record (used when reloading a run)."""
+        self._evidence[evidence.evidence_id] = evidence
+
+    def put_series(self, series: ObservationSeries) -> None:
+        """Insert a prebuilt series (used when reloading a run for replay)."""
+        self._series[series.series_id] = series
+
 
 def classify_freshness(
     published_at: datetime | None,

@@ -20,12 +20,13 @@ from strix.agent.contracts import ModelResponse, TokenUsage, ToolCall, estimate_
 from strix.agent.models import AgentVerificationStatus
 from strix.agent.orchestrator import run_research_question
 
-# Six ascending-then-wobbling closes so realized volatility is > 0.
+# Six recent (within the freshness window) wobbling closes so vol > 0 and the
+# backing evidence is CURRENT at the test's as-of date.
 _BARS = {
     "symbol": "SPY",
     "bars": [
-        {"t": f"2026-10-0{i}T05:00:00Z", "c": c}
-        for i, c in enumerate([100, 110, 99, 105, 102, 108], start=1)
+        {"t": f"2026-11-{d}T05:00:00Z", "c": c}
+        for d, c in zip([13, 16, 17, 18, 19, 20], [100, 110, 99, 105, 102, 108], strict=True)
     ],
 }
 _BARS_JSON = json.dumps(_BARS).encode("utf-8")

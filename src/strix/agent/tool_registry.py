@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -78,15 +78,16 @@ def _handle_get_historical_prices(ctx: ToolContext, args: dict[str, Any]) -> dic
     )
     if isinstance(result, UnavailableSource):
         return _unavailable(result)
+    observations = tuple(Observation(at=p.at, value=p.close) for p in result.points)
     evidence = ctx.collector.register(
         source_type=SourceKind.MARKET_DATA,
         provider=result.provider,
         source_title=f"{symbol} daily closes {result.start}..{result.end}",
         raw=result.raw,
         retrieved_at=result.retrieved_at,
+        published_at=_date_to_dt(observations[-1].at),
         source_url=result.source_url,
     )
-    observations = tuple(Observation(at=p.at, value=p.close) for p in result.points)
     series = ctx.collector.add_series(
         subject=symbol,
         concept="close",
@@ -133,15 +134,16 @@ def _handle_get_sec_financials(ctx: ToolContext, args: dict[str, Any]) -> dict[s
     result = ctx.sec().get_concept_series(ticker, concept)
     if isinstance(result, UnavailableSource):
         return _unavailable(result)
+    observations = tuple(Observation(at=p.at, value=p.close) for p in result.points)
     evidence = ctx.collector.register(
         source_type=SourceKind.SEC_EDGAR,
         provider=result.provider,
         source_title=f"{ticker} {concept} (SEC EDGAR companyfacts)",
         raw=result.raw,
         retrieved_at=result.retrieved_at,
+        published_at=_date_to_dt(observations[-1].at),
         source_url=result.source_url,
     )
-    observations = tuple(Observation(at=p.at, value=p.close) for p in result.points)
     series = ctx.collector.add_series(
         subject=ticker,
         concept=concept,
@@ -239,6 +241,14 @@ def _handle_submit_claim(ctx: ToolContext, args: dict[str, Any]) -> dict[str, An
     ctx.candidate_claims.append(claim)
     # Deliberately does NOT return a verdict: verification is independent.
     return {"recorded": True, "claim_id": claim.claim_id, "status": "pending_independent_review"}
+
+
+def _date_to_dt(iso_date: str) -> datetime | None:
+    """Parse an ISO date (YYYY-MM-DD) to a UTC midnight datetime, or None."""
+    try:
+        return datetime.fromisoformat(iso_date).replace(tzinfo=UTC)
+    except ValueError:
+        return None
 
 
 def _unavailable(result: UnavailableSource) -> dict[str, Any]:
