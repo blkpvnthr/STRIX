@@ -53,13 +53,14 @@ strix --help
 
 ## Usage
 
-Interactive research run:
+Interactive research run (deterministic v1 pipeline):
 
 ```bash
 strix   # Press Enter for offline DEMO, or enter AAPL for live SEC data
 ```
 
-(`python -m strix` is equivalent.)
+(`python -m strix` is equivalent.) For the OpenAI research agent and web app, see
+the [OpenAI Research Agent](#openai-research-agent-strix-ask--web-app) section.
 
 ```
 Ticker [DEMO]:
