@@ -232,6 +232,146 @@ and retrieved dates, freshness, SHA-256 integrity, related claims):
   than fabricated. Cryptographic artifact integrity is kept distinct from factual
   verification.
 
+---
+
+## Financial Intelligence Lakehouse (v0.3.0, in development)
+
+STRIX is growing a persistent, warehouse-backed data platform behind the same
+evidence and verification guarantees. Raw provider bytes are preserved
+immutably (**Bronze**), normalized into typed Decimal Parquet (**Silver**), and
+loaded into a dimensional analytical **warehouse** — **DuckDB** locally (no paid
+infrastructure) with an optional, offline-tested **Snowflake** target. The
+warehouse never *confers* verification: the independent verifier still recomputes
+every claim, and every warehouse row resolves back to the Bronze artifact it came
+from. See [`docs/data-engineering/`](docs/data-engineering/).
+
+### Bronze → Silver → warehouse flow
+
+```mermaid
+flowchart LR
+  subgraph Sources["External sources"]
+    A["Alpaca"]; S["SEC EDGAR"]; F["FRED / BLS"]; T["US Treasury"]
+  end
+  Sources --> B
+  subgraph Lakehouse["Medallion lakehouse"]
+    B["Bronze<br/>immutable raw bytes<br/>SHA-256 + manifest"]
+    V["Silver<br/>typed Decimal Parquet<br/>quality gates + dedup"]
+    W["Warehouse<br/>dimensional model<br/>DuckDB · Snowflake"]
+    B -- "normalize" --> V
+    V -- "load_silver (txn)" --> W
+  end
+  W --> R["STRIX research + verifier"]
+```
+
+Loads are fail-closed: only a **balanced, hash-verified** Silver publication is
+admitted, inside a single transaction that rolls back on any error — an
+interrupted load never exposes partial data.
+
+### DuckDB and Snowflake architecture
+
+```mermaid
+flowchart TB
+  SP["Silver publication<br/>(Parquet + manifest)"]
+  SP --> L["WarehouseLoader"]
+  L -->|operational| D["DuckDB<br/>single file · single-writer<br/>read_parquet · read-only queries"]
+  L -->|optional| SF["Snowflake<br/>COPY INTO + MERGE<br/>STRIX_INGEST / STRIX_RESEARCH roles<br/>auto-suspend"]
+  D --> Q["WarehouseQueries<br/>parameterized · read-only"]
+  SF -. credentials from SNOWFLAKE_* env .-> SF
+```
+
+### Fact and dimension relationships
+
+```mermaid
+erDiagram
+  dim_date            ||--o{ fact_market_bars            : observed_on
+  dim_instrument      ||--o{ fact_market_bars            : for_instrument
+  dim_source          ||--o{ fact_market_bars            : from_source
+  dim_evidence        ||--o{ fact_market_bars            : cites
+  dim_company         ||--o{ fact_company_financials     : reports
+  dim_date            ||--o{ fact_company_financials     : filed_on
+  dim_economic_series ||--o{ fact_economic_observations  : measures
+  dim_date            ||--o{ fact_treasury_yields        : observed_on
+  dim_pipeline_run    ||--o{ fact_pipeline_runs          : records
+  fact_market_bars {
+    text  silver_natural_key PK
+    date  session_date
+    decimal open_high_low_close
+    text  bronze_artifact_id
+  }
+  fact_company_financials {
+    text  silver_natural_key PK
+    text  concept
+    decimal value
+    date  filed_date
+  }
+```
+
+Each fact's primary key is the upstream Silver `natural_key`, so reloads are
+idempotent. Schema-only placeholder facts (quotes, corporate actions, sector
+performance, ratios, research claims, verification results) are created but
+reported as unpopulated — no invented rows.
+
+### Incremental loading
+
+```mermaid
+flowchart TD
+  P["New Silver publication"] --> C{"Already loaded?<br/>(silver_publication_id<br/>in _load_state)"}
+  C -->|yes| SK["Skip (no-op)"]
+  C -->|no| NK{"Per natural key"}
+  NK -->|new key| INS["INSERT"]
+  NK -->|"same key,<br/>changed row_signature"| UPD["UPDATE (revision)"]
+  NK -->|"same key,<br/>same signature"| UNC["unchanged"]
+  INS --> ST["record counts in _load_state → COMMIT"]
+  UPD --> ST
+  UNC --> ST
+```
+
+A revised observation (same natural key, changed `row_signature`) is an
+**update**, not a duplicate; SEC restatements (distinct accession) and FRED
+vintages (distinct `realtime_start`) are distinct keys, enabling true
+point-in-time queries via `filed_date` / `realtime_start <= cutoff`.
+
+### Source-to-claim lineage
+
+```mermaid
+flowchart LR
+  CL["Verified claim"] --> EV["dim_evidence"]
+  EV --> WR["Warehouse fact row"]
+  WR --> SV["Silver publication<br/>(schema version)"]
+  SV --> BR["Bronze artifact<br/>(re-hash verified)"]
+  BR --> SL["Source-record locator<br/>(provider endpoint)"]
+```
+
+`strix warehouse lineage --dataset X --key NK` walks this chain end to end and
+re-verifies the Bronze artifact's content hash; lineage completeness is part of
+reconciliation.
+
+### Warehouse integration with STRIX research
+
+```mermaid
+flowchart LR
+  QN["Research question"] --> AG["Agent / tools"]
+  AG --> WQ["WarehouseQueries<br/>(read-only, parameterized)"]
+  WQ --> OBS["Observations + units<br/>+ source refs"]
+  OBS --> VF["Independent verifier<br/>recomputes claims"]
+  VF --> ANS["Verified answer"]
+  AG -. no raw SQL, no verdicts .-> WQ
+```
+
+The model never executes raw SQL and never assigns a verdict; the warehouse
+supplies observations that the verifier independently recomputes.
+
+### Warehouse CLI
+
+```bash
+strix warehouse init [--backend duckdb|snowflake]   # create schema (DuckDB) / print DDL (Snowflake)
+strix warehouse load [--dataset NAME|all] [--dry-run] [--json]
+strix warehouse status | profile | reconcile | verify
+strix warehouse lineage --dataset NAME --key NATURAL_KEY
+```
+
+---
+
 ## Development
 
 ```bash

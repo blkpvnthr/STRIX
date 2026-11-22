@@ -138,6 +138,49 @@ def _build_normalize_parser(
         _common(p)
 
 
+def _build_warehouse_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    """`strix warehouse` — analytical warehouse load/query (DE-4)."""
+    wh = subparsers.add_parser(
+        "warehouse",
+        help="analytical warehouse: init, load, status, profile, reconcile, verify, lineage",
+        description=(
+            "Load validated Silver publications into a DuckDB analytical warehouse "
+            "(optional Snowflake target). Facts/dimensions, transactional incremental "
+            "loading, reconciliation, point-in-time fields, and evidence lineage."
+        ),
+    )
+    sub = wh.add_subparsers(dest="warehouse_command", required=True)
+
+    def _common(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--lakehouse-dir", dest="lakehouse_dir", metavar="PATH", default=None)
+        parser.add_argument("--db-path", dest="db_path", metavar="PATH", default=None)
+        parser.add_argument("--backend", default="duckdb", choices=["duckdb", "snowflake"])
+        parser.add_argument("--json", action="store_true")
+
+    load = sub.add_parser("load", help="load Silver datasets into the warehouse")
+    load.add_argument("--dataset", default="all")
+    load.add_argument("--dry-run", action="store_true", help="roll back after computing counts")
+    _common(load)
+
+    lineage = sub.add_parser("lineage", help="trace a warehouse row to its Bronze artifact")
+    lineage.add_argument("--dataset", required=True)
+    lineage.add_argument("--key", required=True, metavar="NATURAL_KEY")
+    _common(lineage)
+
+    for name, helptext in (
+        ("init", "create warehouse schema"),
+        ("status", "table row counts"),
+        ("profile", "table inventory (incl. schema-only placeholders)"),
+        ("reconcile", "Silver-vs-warehouse reconciliation"),
+        ("verify", "integrity + reconciliation (fail-closed)"),
+    ):
+        p = sub.add_parser(name, help=helptext)
+        p.add_argument("--dataset", default="all")
+        _common(p)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="strix",
@@ -208,6 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     _build_ingest_parser(subparsers)
     _build_normalize_parser(subparsers)
+    _build_warehouse_parser(subparsers)
 
     engineer_parser = subparsers.add_parser(
         "engineer",
@@ -294,6 +338,10 @@ def main(
             from strix.lakehouse.silver.cli import run_normalize
 
             return run_normalize(args, out=out, err=err)
+        if args.command == "warehouse":
+            from strix.lakehouse.warehouse.cli import run_warehouse
+
+            return run_warehouse(args, out=out, err=err)
         if args.command == "engineer":
             return _cmd_engineer_compile(args, state_dir, out, err, clock)
         return _cmd_research(
