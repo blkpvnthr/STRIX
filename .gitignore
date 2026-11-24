@@ -60,3 +60,6 @@ web/.playwright-mcp/
 /dbt/profiles.yml
 /dbt/.user.yml
 *.sqlite
+
+# Local agent worktrees (never commit)
+.claude/worktrees/

@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from strix.agent.budget import BudgetSnapshot, BudgetTracker
+from strix.agent.citations import resolve_claim_citations
 from strix.agent.config import AgentConfig, merged_environment
 from strix.agent.connectors.market_data import AlpacaConnector
 from strix.agent.evidence_collector import EvidenceCollector
@@ -111,8 +112,18 @@ def run_research_question(
         cancel_check=cancel_check,
     )
 
+    emit("Resolving citations")
+    resolution = resolve_claim_citations(tuple(ctx.candidate_claims), collector)
+    if resolution.had_unresolved:
+        dangling = sum(len(v) for v in resolution.dropped.values())
+        limitations.append(
+            f"{dangling} web-search citation(s) could not be resolved to a preserved "
+            "source and were excluded; affected statements are shown as attributed, "
+            "not independently verified."
+        )
+
     emit("Independently verifying candidate claims")
-    verified_all = verify_claims(ctx.candidate_claims, collector, now=now)
+    verified_all = verify_claims(resolution.claims, collector, now=now)
     verified = tuple(
         c for c in verified_all if c.verification.status is AgentVerificationStatus.VERIFIED
     )
@@ -252,7 +263,13 @@ def _system_instructions(as_of: date) -> str:
 
 
 def _register_web_citations(response: Any, collector: EvidenceCollector, now: datetime) -> None:
-    """Preserve url citations from hosted web search as evidence records."""
+    """Preserve url citations from hosted web search as evidence records.
+
+    Each preserved record is also aliased by every provider-native handle the
+    citation carries (the URL and any id-like markers the model may echo as an
+    ``evidence_id``), so a claim that cites ``turn…news…`` resolves to this
+    record instead of being rejected as unknown evidence (spec §8).
+    """
     raw = getattr(response, "output_text", "") or ""
     for citation in _iter_url_citations(response):
         url = citation.get("url")
@@ -261,7 +278,7 @@ def _register_web_citations(response: Any, collector: EvidenceCollector, now: da
         title = citation.get("title") or url
         snippet = citation.get("text") or citation.get("snippet")
         payload = json.dumps({"url": url, "title": title, "snippet": snippet}).encode("utf-8")
-        collector.register(
+        evidence = collector.register(
             source_type=SourceKind.WEB_SEARCH_RESULT,
             provider="Web search",
             source_title=str(title)[:300],
@@ -270,6 +287,14 @@ def _register_web_citations(response: Any, collector: EvidenceCollector, now: da
             source_url=str(url),
             excerpt=(str(snippet)[:2000] if snippet else _window(raw, citation)),
         )
+        collector.register_alias(str(url), evidence.evidence_id)
+        for marker in citation.get("markers", ()):  # type: ignore[union-attr]
+            collector.register_alias(marker, evidence.evidence_id)
+
+
+#: Attributes on a citation annotation that may carry a provider-native handle
+#: the model could echo as an evidence id (never ``type``, which is shared).
+_MARKER_ATTRS = ("id", "ref_id", "reference", "source_id", "file_id", "citation_id")
 
 
 def _iter_url_citations(response: Any) -> list[dict[str, Any]]:
@@ -287,9 +312,20 @@ def _iter_url_citations(response: Any) -> list[dict[str, Any]]:
                             "text": getattr(ann, "text", None) or getattr(ann, "snippet", None),
                             "start": getattr(ann, "start_index", None),
                             "end": getattr(ann, "end_index", None),
+                            "markers": _annotation_markers(ann),
                         }
                     )
     return citations
+
+
+def _annotation_markers(ann: Any) -> tuple[str, ...]:
+    """Collect provider-native handle strings from a citation annotation."""
+    markers: list[str] = []
+    for attr in _MARKER_ATTRS:
+        value = getattr(ann, attr, None)
+        if isinstance(value, str) and value.strip():
+            markers.append(value.strip())
+    return tuple(dict.fromkeys(markers))
 
 
 def _window(text: str, citation: dict[str, Any]) -> str | None:

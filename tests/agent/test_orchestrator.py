@@ -176,3 +176,61 @@ def test_wrong_claimed_value_is_not_verified(tmp_path: Path) -> None:
     assert outcome.answer.unresolved_claims[0].verification.status is (
         AgentVerificationStatus.CONTRADICTED
     )
+
+
+_DANGLING_HANDLE = "turn874423news19"
+
+
+class DanglingCitationProvider:
+    """Submits one attributed claim citing an unresolvable web handle, then stops."""
+
+    def __init__(self, config: Any) -> None:
+        self.config = config
+
+    def create_response(self, *, input: Any, instructions: str, tools: Any, previous_response_id=None) -> ModelResponse:  # noqa: E501
+        if isinstance(input, list) and input and input[0].get("role") == "user":
+            return _mr(
+                self.config,
+                tool_calls=(
+                    ToolCall(
+                        call_id="c1",
+                        name="submit_claim",
+                        arguments=json.dumps(
+                            {
+                                "claim_type": "attributed_statement",
+                                "statement": (
+                                    "An AP report described an AI-stock sell-off that pulled "
+                                    "the S&P 500 down 3.7%."
+                                ),
+                                "evidence_ids": [_DANGLING_HANDLE],
+                                "attributed_to": "Associated Press",
+                            }
+                        ),
+                    ),
+                ),
+            )
+        return _mr(self.config, text="Done.")
+
+
+def test_dangling_web_handle_is_excluded_and_never_leaks(tmp_path: Path) -> None:
+    config = build_config()
+    outcome = run_research_question(
+        "should i expect bearish or bullish conditions?",
+        config=config,
+        state_dir=tmp_path,
+        provider=DanglingCitationProvider(config),  # type: ignore[arg-type]
+        alpaca=_fake_alpaca(),
+        as_of=date(2026, 11, 22),
+        clock=lambda: _NOW,
+    )
+    # The attributed claim is disclosed as unresolved, not verified.
+    assert len(outcome.answer.verified_claims) == 0
+    assert len(outcome.answer.unresolved_claims) == 1
+    # A limitation discloses the excluded citation.
+    assert any("could not be resolved" in lim for lim in outcome.answer.limitations)
+    # The raw handle must appear nowhere in the persisted or rendered artifacts.
+    assert _DANGLING_HANDLE not in outcome.answer.model_dump_json()
+    rendered = (outcome.run_dir / "answer.txt").read_text()
+    assert _DANGLING_HANDLE not in rendered
+    claims_json = (outcome.run_dir / "claims.json").read_text()
+    assert _DANGLING_HANDLE not in claims_json

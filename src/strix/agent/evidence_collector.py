@@ -33,6 +33,10 @@ class EvidenceCollector:
         self._evidence: dict[str, AgentEvidence] = {}
         self._series: dict[str, ObservationSeries] = {}
         self._artifacts: dict[str, bytes] = {}
+        #: External citation markers (e.g. web-search handles the model echoes,
+        #: source URLs) -> canonical evidence id. Lets a claim that cites a
+        #: provider-native handle resolve to the preserved evidence record.
+        self._aliases: dict[str, str] = {}
 
     def register(
         self,
@@ -96,6 +100,28 @@ class EvidenceCollector:
         )
         self._series[series.series_id] = series
         return series
+
+    def register_alias(self, alias: str, evidence_id: str) -> None:
+        """Map an external citation marker to a preserved evidence id.
+
+        A no-op when the alias is empty, the target evidence is unknown, or the
+        alias would shadow a real evidence id. First writer wins, so a stable
+        marker never flips to a different source mid-run.
+        """
+        alias = (alias or "").strip()
+        if not alias or evidence_id not in self._evidence or alias in self._evidence:
+            return
+        self._aliases.setdefault(alias, evidence_id)
+
+    def resolve(self, ref: str) -> str | None:
+        """Resolve a reference (evidence id or known alias) to a canonical id.
+
+        Returns ``None`` for a reference that is neither a known evidence id nor
+        a registered alias — i.e. a dangling/unresolvable citation.
+        """
+        if ref in self._evidence:
+            return ref
+        return self._aliases.get(ref)
 
     # -- read-only access --------------------------------------------------
 
