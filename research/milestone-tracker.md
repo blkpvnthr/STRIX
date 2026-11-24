@@ -8,12 +8,14 @@ Branch: `research/formal-evidence-verification` (R1 baseline).
 | ID | Milestone | Status | Acceptance / evidence | Blockers |
 |---|---|---|---|---|
 | R1 | Resource-bounded typed evidence verification | **DONE/TESTED** | 1430 passed, 0 regressions; ruff/mypy clean (31 mods); 11 adversarial defects fixed; e2e integration test | — |
-| R1-commit | Commit/push/PR R1 | **IN PROGRESS** | scoped commits on branch | push/PR need remote auth (attempt) |
-| R2-E | Ed25519 signed certificates | NOT_STARTED | — | needs `cryptography` (offline-OK) |
-| R2-A | Live integration (governed `ask`, lifecycle) | NOT_STARTED | — | — |
-| R2-B | Runtime behavior monitoring | NOT_STARTED | — | — |
-| R2-C | Uncertainty assessment | NOT_STARTED | — | — |
-| R2-D | Answer-first conversational intelligence | PARTIAL (deterministic path built in R1) | — | live-agent wiring |
+| R1-commit | Commit R1 | **DONE** (8 scoped commits 593ccd3..1626429) | 79 files, 0 sensitive; README/assets/docs-FALCON excluded (unattributed/pre-existing) | — |
+| R1-push | Push branch + open PR | **BLOCKED** | — | network action denied by auto-mode classifier; user must `git push -u origin research/formal-evidence-verification` + `gh pr create`, or grant Bash push permission |
+| R2-E | Ed25519 signed certificates | **DONE/TESTED** | assurance/signing.py; domain-separated, keyring/rotate/revoke; 24+ tests; fail-closed fix | — |
+| R2-B | Runtime behavior monitoring | **DONE/TESTED** | assurance/monitoring.py; independent non-overridable; neg-cost breaker fix; 21+ tests | — |
+| R2-C | Uncertainty assessment | **DONE/TESTED** | assurance/uncertainty.py; ordinal (no fabricated probs); 5 separate dimensions; 22 tests | — |
+| R2-gateway | Six-pillar authorization gateway | **DONE/TESTED** | assurance/gateway.py; 5 outcomes, fail-closed; whitelist fix; adversarially reviewed (1080-combo) | — |
+| R2-A | Governed research lifecycle (§4) | **DONE/TESTED (offline)** | assurance/lifecycle.py; full lifecycle composed+signed+audited; test_r2_governed 3 tests | live-agent evidence-collection wiring (the `findings` seam) |
+| R2-D | Answer-first conversational intelligence | DONE (deterministic path, R1) | — | live-agent wiring |
 | R2-F | Experimental benchmark + H1–H12 | NOT_EVALUATED | harness design in experimental-protocol.md | live LLM budget/credentials for 120/1200-q runs |
 | R2-G | C++ / Metal native backends | NOT_STARTED | — | CMake toolchain; Metal needs macOS GPU |
 | DE-1..9 | Financial data engineering platform | PARTIAL (Bronze/Silver/warehouse/dbt per prior memory) | existing lakehouse tests | Airflow orchestration; some connectors need keys |
