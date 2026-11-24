@@ -84,6 +84,67 @@ def test_submit_runs_to_completion(tmp_path: Path) -> None:
     assert done.public()["research_id"] == job.id
 
 
+def _fake_outcome_with_response(question: str, run_dir: Path) -> ResearchOutcome:
+    from datetime import UTC, datetime
+
+    from strix.agent.models import MarketAssessment, MarketStance, ResearchResponse
+
+    base = _fake_outcome(question, run_dir)
+    response = ResearchResponse(
+        run_id=base.run_id,
+        question=question,
+        question_intent="predictive",
+        direct_answer="No single session can be predicted.",
+        analysis="",
+        market_assessment=MarketAssessment(
+            stance=MarketStance.BEARISH,
+            horizon="next session",
+            analysis_timestamp=datetime(2026, 11, 23, tzinfo=UTC),
+        ),
+        verified_answer=base.answer,
+    )
+    return ResearchOutcome(
+        answer=base.answer,
+        run_id=base.run_id,
+        run_dir=run_dir,
+        usage=base.usage,
+        claims=(),
+        response=response,
+    )
+
+
+def test_result_includes_response_and_thread(tmp_path: Path) -> None:
+    def runner(question: str, **kwargs: Any) -> ResearchOutcome:
+        return _fake_outcome_with_response(question, tmp_path)
+
+    service = ResearchService(tmp_path, config_loader=lambda: build_config(), runner=runner)
+    job = service.submit("how will the market perform tomorrow?")
+    done = _poll(service, job.id)
+    assert done.status == "completed"
+    assert done.result is not None
+    assert done.result["response"]["direct_answer"] == "No single session can be predicted."
+    assert done.result["response"]["market_assessment"]["stance"] == "bearish"
+    assert done.result["thread_id"] == job.thread_id
+
+
+def test_thread_context_carries_into_followup(tmp_path: Path) -> None:
+    seen: list[Any] = []
+
+    def runner(question: str, **kwargs: Any) -> ResearchOutcome:
+        seen.append(kwargs.get("prior_context"))
+        return _fake_outcome_with_response(question, tmp_path)
+
+    service = ResearchService(tmp_path, config_loader=lambda: build_config(), runner=runner)
+    first = service.submit("how will the market perform tomorrow?")
+    _poll(service, first.id)
+    second = service.submit("what would invalidate that?", thread_id=first.thread_id)
+    _poll(service, second.id)
+    # The first run had no prior context; the second sees the recorded first turn.
+    assert seen[0] is None or not getattr(seen[0], "has_prior", False)
+    assert getattr(seen[1], "has_prior", False) is True
+    assert seen[1].last_stance == "bearish"
+
+
 def test_config_error_marks_job_failed(tmp_path: Path) -> None:
     from strix.errors import AgentConfigError
 

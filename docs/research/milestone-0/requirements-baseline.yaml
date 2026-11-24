@@ -1,0 +1,423 @@
+# STRIX Formal Requirements Baseline — Milestone 0B
+#
+# Machine-readable companion to requirements-traceability.md.
+# Audit commit of record: 3dc70eac6b6b178d51156185113beb70d7c899e4 (branch feat/conversational-intelligence)
+# Authored on branch: feat/milestone-0b
+#
+# status vocabulary (do not conflate):
+#   implemented  - behavior exists in source AND is asserted by a passing test
+#   partial      - some sub-behavior exists; named requirement not fully satisfied
+#   untested     - behavior exists in source but lacks a direct asserting test
+#   missing      - no supporting implementation at the audit commit
+#   proposed     - specified for a later milestone; not implemented in 0B
+#
+# Every implementation_reference cites file:symbol at the audit commit.
+# Every verification_method cites a test module (and test fn where applicable).
+# claim_discipline: entries below record ESTABLISHED IMPLEMENTATION FACTS and
+#   explicit NON-implementation. They are NOT research hypotheses (see
+#   comparative-experiment-design.md for the falsifiable hypotheses).
+
+baseline:
+  schema_version: "0b.1"
+  audit_commit: "3dc70eac6b6b178d51156185113beb70d7c899e4"
+  audit_branch: "feat/conversational-intelligence"
+  work_branch: "feat/milestone-0b"
+  gaps:
+    GAP-001: "Dynamic Evidence-Bound Execution Assurance"
+    GAP-002: "Closed-Loop Execution and Outcome Certification"
+    GAP-003: "Interoperable Financial Evidence Verification"
+
+requirements:
+
+  - id: STRIX-001
+    version: "1.0.0"
+    title: "Immutable evidence preservation"
+    gap: [GAP-003, GAP-001, GAP-002]
+    rationale: >
+      Verification, reconciliation, and replay are only meaningful if the evidence
+      they operate on cannot be silently mutated after collection.
+    preconditions:
+      - Raw source bytes are available at collection time.
+    required_behavior:
+      - Evidence contracts are immutable (frozen) and reject unknown fields.
+      - Raw bytes are preserved byte-exact and addressed by content hash.
+      - Numeric values use Decimal; floats are rejected at the type boundary.
+    failure_behavior:
+      - Reject construction of evidence with floats or malformed hashes (ValidationError).
+      - Raise on write if a preserved artifact's re-read hash != source hash.
+    acceptance_criteria:
+      - A frozen evidence model cannot be mutated after construction.
+      - Modifying source bytes changes the derived artifact/evidence identity.
+      - A status change does NOT change evidence identity (status excluded from id/hash).
+    implementation_references:
+      - "src/strix/models.py:StrixModel (frozen, extra=forbid); DecimalValue float-reject"
+      - "src/strix/canonical.py:canonical_hash, sha256_hex, make_id (floats forbidden)"
+      - "src/strix/run_store.py:RunStore._preserve_raw_files (re-verify hash on write)"
+      - "src/strix/agent/evidence_collector.py:EvidenceCollector.register"
+    verification_methods:
+      - "tests/test_canonical.py (Decimal/float/datetime rules)"
+      - "tests/test_evidence.py::test_modified_bytes_change_artifact_identity"
+      - "tests/test_evidence.py::test_status_change_does_not_change_evidence_id"
+      - "tests/test_run_store.py (raw re-verification, atomicity)"
+    status: implemented
+
+  - id: STRIX-002
+    version: "0.2.0"
+    title: "Versioned requirements and authorization policies"
+    gap: [GAP-001]
+    rationale: >
+      Execution assurance requires that the requirement/policy in force at
+      authorization time is identifiable and immutable, so a later evidence change
+      can be evaluated against the exact policy that authorized an action.
+    preconditions:
+      - A requirement/policy store exists with addressable, versioned entries.
+    required_behavior:
+      - Requirements carry stable IDs and versions.
+      - Authorization policies are versioned and content-addressed.
+      - The policy version in force is recorded with any authorization.
+    failure_behavior:
+      - Reject duplicate requirement IDs within a source.
+      - Abstain if the governing policy version cannot be resolved.
+    acceptance_criteria:
+      - A requirement can be resolved by (id, version).
+      - ReqIF ingestion rejects duplicate IDENTIFIERs.
+    implementation_references:
+      - "src/strix/engineering/models.py:RequirementFact, AllocationFact (per-compile, no status field)"
+      - "src/strix/engineering/adapters/reqif.py:ReqIfAdapter.parse (duplicate-ID rejection)"
+      - "src/strix/engineering/metrics.py:allocation_coverage (compile-time ratio)"
+    verification_methods:
+      - "tests/engineering/test_manifest_and_adapters.py (ReqIF parse, duplicate rejection)"
+      - "tests/engineering/test_builder_and_verifier.py (allocation/requirement proposal)"
+    gaps_to_close:
+      - "No persistent, cross-run requirements registry; requirements re-derived per compile."
+      - "RequirementFact has no status/version field; no authorization-policy concept exists."
+    status: partial
+
+  - id: STRIX-003
+    version: "0.3.0"
+    title: "Contradictory evidence detection"
+    gap: [GAP-003]
+    rationale: >
+      Interoperable verification must detect when two records of the same fact
+      disagree, rather than silently preferring one.
+    preconditions:
+      - At least two independently derived representations of a fact exist.
+    required_behavior:
+      - Compare independent representations under a documented tolerance.
+      - Mark disagreement as a discrepancy; never silently accept.
+    failure_behavior:
+      - Emit CONTRADICTED / "discrepancy" and preserve both values + lineage.
+    acceptance_criteria:
+      - A forced numeric mismatch yields a non-confirmed/discrepancy status.
+      - A claim whose recomputed value differs beyond tolerance is CONTRADICTED.
+    implementation_references:
+      - "src/strix/lakehouse/transform/verification.py:WarehouseCrossValidator (_finish: confirmed|discrepancy)"
+      - "src/strix/agent/verifier.py:_verify_numeric (CONTRADICTED on tolerance breach)"
+      - "src/strix/corpus/diff.py:compute_diff (snapshot reconciliation)"
+    verification_methods:
+      - "tests/agent/test_verifier.py (CONTRADICTED path)"
+      - "tests/lakehouse/test_transform_reconciliation_discrepancy.py (0B: forced discrepancy — added this milestone)"
+    gaps_to_close:
+      - "Discrepancy branch of WarehouseCrossValidator was untested pre-0B; 0B adds coverage."
+      - "No unified cross-source discrepancy type across the 4 reconciling modules."
+      - "FINDING (0B): no duplicate-grain guard in the cross-validator — a mart row duplicated past its grain is collapsed by fetchone() and still reported 'confirmed' (grain enforced only upstream by dbt unique tests at build time). Preserved as xfail(strict) test_duplicate_mart_row_should_not_confirm."
+      - "FINDING (0B): view-backed metrics (realized_volatility, cumulative_return) read a dbt intermediate VIEW that recomputes from the same fact rows the Python side reads, so fact-level corruption moves both sides together and is NOT caught — reconciliation is engine-agreement only, not fact-integrity, for those metrics. Pinned by test_view_backed_metric_does_not_catch_fact_duplicate."
+    status: partial
+
+  - id: STRIX-004
+    version: "0.2.0"
+    title: "Evidence freshness enforcement"
+    gap: [GAP-001]
+    rationale: >
+      Previously authorized actions must not execute on evidence that has gone stale.
+    preconditions:
+      - Evidence carries a publication/observation timestamp.
+    required_behavior:
+      - Classify evidence freshness against a configurable threshold.
+      - At execution time, re-validate freshness and abstain/downgrade if stale.
+    failure_behavior:
+      - Downgrade VERIFIED -> STALE when backing evidence exceeds max age.
+      - (Target) Block execution when evidence is stale at execution time.
+    acceptance_criteria:
+      - Future-dated / absent timestamps classify as UNKNOWN.
+      - A VERIFIED claim with stale evidence is downgraded to STALE.
+    implementation_references:
+      - "src/strix/agent/evidence_collector.py:classify_freshness (DEFAULT_MAX_AGE_DAYS=45)"
+      - "src/strix/agent/verifier.py:_has_stale_evidence (VERIFIED->STALE downgrade)"
+    verification_methods:
+      - "tests/agent/test_evidence_collector.py::test_classify_freshness"
+      - "tests/agent/test_verifier.py::test_verified_but_stale_is_downgraded"
+    gaps_to_close:
+      - "Single hard-coded 45-day threshold; not configurable per source/evidence class."
+      - "No re-fetch / expiry / alerting; no execution-time freshness gate."
+      - "Corpus and lakehouse datasets have no age/freshness concept."
+    status: partial
+
+  - id: STRIX-005
+    version: "0.1.0"
+    title: "Exact action-parameter binding"
+    gap: [GAP-001, GAP-002]
+    rationale: >
+      An authorization must bind to the exact parameters of the action it permits,
+      so a different (or mutated) action cannot reuse the authorization.
+    preconditions:
+      - An action representation with typed parameters exists.
+    required_behavior:
+      - Bind an authorization certificate to a canonical hash of action parameters.
+      - Reject execution if actual parameters != bound parameters.
+    failure_behavior:
+      - Fail closed on any parameter mismatch.
+    acceptance_criteria:
+      - (Target) Execution with altered parameters is refused.
+    implementation_references:
+      - "NONE at audit commit — no action/authorization abstraction exists."
+      - "Reusable primitive: src/strix/canonical.py:canonical_hash for parameter hashing."
+    verification_methods:
+      - "Proposed: Milestone 2 spec (execution-assurance-spec)."
+    status: missing
+
+  - id: STRIX-006
+    version: "0.1.0"
+    title: "Execution-time authorization revalidation"
+    gap: [GAP-001]
+    rationale: >
+      Authorization granted earlier must be re-checked against current evidence at
+      the moment of execution (addressing time-of-check/time-of-use).
+    preconditions:
+      - A fail-closed execution gateway exists.
+    required_behavior:
+      - Re-run evidence/policy validation immediately before execution.
+      - Abstain if evidence is stale, contradictory, or invalid at execution time.
+    failure_behavior:
+      - Refuse execution; record the abstention with reason.
+    acceptance_criteria:
+      - (Target) A run authorized earlier is blocked when evidence later becomes stale/invalid.
+    implementation_references:
+      - "NONE at audit commit — no execution gateway exists."
+    verification_methods:
+      - "Proposed: Milestone 2 spec (TOCTOU test matrix)."
+    status: missing
+
+  - id: STRIX-007
+    version: "0.1.0"
+    title: "Replay-resistant authorization"
+    gap: [GAP-001]
+    rationale: >
+      An authorization certificate must not be reusable to execute an action twice.
+    preconditions:
+      - Authorization certificates exist and are consumed atomically.
+    required_behavior:
+      - Each certificate carries a single-use nonce; consumption is atomic.
+      - A consumed certificate is rejected on re-presentation.
+    failure_behavior:
+      - Reject replayed certificates; fail closed.
+    acceptance_criteria:
+      - (Target) Re-presenting a consumed certificate is refused.
+    implementation_references:
+      - "NONE at audit commit — no authorization certificate / nonce exists."
+      - "Adjacent primitive: src/strix/lakehouse/ingest/checkpoints.py (idempotency watermarks, not authorization)."
+    verification_methods:
+      - "Proposed: Milestone 2 spec (replay-protection tests)."
+    status: missing
+
+  - id: STRIX-008
+    version: "0.2.0"
+    title: "Independent certification boundaries"
+    gap: [GAP-001]
+    rationale: >
+      The component that accepts/certifies must be independent of the component that
+      proposes (the LLM), and LLM output must not bypass certification.
+    preconditions:
+      - A deterministic verifier exists separate from the proposer.
+    required_behavior:
+      - Verification path imports no LLM; recomputes independently.
+      - Proposer may only emit PENDING; verifier is the authoritative acceptance boundary.
+    failure_behavior:
+      - Reject any answer containing a claim marked verified without VERIFIED status (fail closed).
+    acceptance_criteria:
+      - Verification modules import no LLM library.
+      - validate_answer rejects crafted fail-closed violations.
+    implementation_references:
+      - "src/strix/verification/claims.py; src/strix/agent/verifier.py; src/strix/agent/calculations.py (no LLM imports)"
+      - "src/strix/agent/orchestrator.py: verify_claims called AFTER provider loop"
+      - "src/strix/agent/response_validator.py:validate_answer (fail-closed)"
+    verification_methods:
+      - "tests/agent/test_response_validator.py (0B: direct fail-closed branch tests — added this milestone)"
+      - "tests/test_cli.py::TestReasonerIsolation"
+    gaps_to_close:
+      - "Boundary is independent-by-construction but NOT cryptographically signed; no trust root."
+      - "validate_answer fail-closed branches were untested pre-0B; 0B adds coverage."
+    status: partial
+
+  - id: STRIX-009
+    version: "0.1.0"
+    title: "Decision-to-execution event correlation"
+    gap: [GAP-002]
+    rationale: >
+      Closed-loop certification requires linking an authorized decision to the action
+      executed under it and to the later observed outcome, across retries.
+    preconditions:
+      - A domain-independent event ledger with correlation identifiers exists.
+    required_behavior:
+      - Assign a correlation id at decision time; carry it through execution and outcome.
+      - Join decision/execution/outcome events by correlation id.
+    failure_behavior:
+      - Flag orphaned events (decision without outcome, outcome without decision).
+    acceptance_criteria:
+      - (Target) A decision event and its outcome are joinable by correlation id.
+    implementation_references:
+      - "NONE (domain-independent event ledger) at audit commit."
+      - "Only adjacent: HTTP X-Correlation-ID echo (src/strix/service.py); conversation thread linkage (src/strix/agent/memory.py); backward data-lineage (input_fact_ids)."
+    verification_methods:
+      - "Proposed: Milestone 3 spec (event-ledger tests)."
+    status: missing
+
+  - id: STRIX-010
+    version: "0.1.0"
+    title: "Independent outcome verification"
+    gap: [GAP-002]
+    rationale: >
+      The realized outcome of an action must be observed and verified independently of
+      the actor that executed it.
+    preconditions:
+      - An independent outcome-observation channel + outcome evidence contract exist.
+    required_behavior:
+      - Observe outcomes from an independent source; bind to the decision via correlation id.
+      - Verify observed outcome against expected outcome deterministically.
+    failure_behavior:
+      - Mark unverified/abstain when outcome evidence is incomplete.
+    acceptance_criteria:
+      - (Target) Observed outcome reconciled against expected; mismatch flagged.
+    implementation_references:
+      - "NONE at audit commit."
+    verification_methods:
+      - "Proposed: Milestone 3 spec."
+    status: missing
+
+  - id: STRIX-011
+    version: "0.1.0"
+    title: "Retry and partial-failure handling"
+    gap: [GAP-002]
+    rationale: >
+      Outcome certification must remain correct under retries, duplicates, and partial
+      or failed executions.
+    preconditions:
+      - Idempotent execution + de-duplication keyed on correlation id.
+    required_behavior:
+      - Detect duplicate executions; represent partial/failed outcomes explicitly.
+    failure_behavior:
+      - Never double-count an outcome; never certify an incomplete outcome as complete.
+    acceptance_criteria:
+      - (Target) A retried action does not produce two certified outcomes.
+    implementation_references:
+      - "NONE for outcomes at audit commit."
+      - "Adjacent idempotency primitive: src/strix/lakehouse/ingest/checkpoints.py (ingest watermarks)."
+    verification_methods:
+      - "Proposed: Milestone 3 spec."
+    status: missing
+
+  - id: STRIX-012
+    version: "0.2.0"
+    title: "Heterogeneous evidence reconciliation"
+    gap: [GAP-003]
+    rationale: >
+      Reconciling conflicting records across heterogeneous sources, preserving
+      provenance and traceability, is the core of GAP-003.
+    preconditions:
+      - Canonical evidence schema + a shared reconciliation interface.
+    required_behavior:
+      - Normalize heterogeneous records into canonical facts; reconcile under tolerance.
+      - Preserve provenance and requirements traceability through reconciliation.
+    failure_behavior:
+      - Emit a typed discrepancy with both sources' lineage; abstain where unresolvable.
+    acceptance_criteria:
+      - Two engines (SQL vs Python Decimal) reconcile per metric; disagreement -> discrepancy.
+    implementation_references:
+      - "src/strix/lakehouse/transform/verification.py:WarehouseCrossValidator (per-metric, two-engine)"
+      - "src/strix/engineering/verifier.py:_verify_configuration (REVISION_CONFLICT / CONFIGURATION_AMBIGUITY)"
+    verification_methods:
+      - "tests/lakehouse/test_transform_dbt.py (agreement controls)"
+      - "tests/lakehouse/test_transform_reconciliation_discrepancy.py (0B: discrepancies — added this milestone)"
+    gaps_to_close:
+      - "No shared cross-source reconciliation interface; logic fragmented across 4 modules."
+      - "No canonical FINANCIAL evidence schema spanning heterogeneous sources (Milestone 1)."
+      - "FINDING (0B): no provenance VALIDATION in the cross-validator — lineage (bronze_artifact_id) is surfaced but never checked to be meaningful; an empty-string artifact id still yields 'confirmed'. Preserved as xfail(strict) test_missing_provenance_should_not_confirm."
+      - "FINDING (0B): current cross-validator reconciles two engines over ONE homogeneous warehouse, not heterogeneous source types; true heterogeneous reconciliation is Milestone 1."
+    status: partial
+
+  - id: STRIX-013
+    version: "0.2.0"
+    title: "Explicit abstention"
+    gap: [GAP-003, GAP-001, GAP-002]
+    rationale: >
+      When evidence is insufficient or unresolvable, the system must abstain explicitly
+      rather than emit an unsupported result.
+    preconditions:
+      - Verification outcomes include explicit abstention states.
+    required_behavior:
+      - Emit INSUFFICIENT_EVIDENCE / UNVERIFIABLE / abstain rather than guess.
+    failure_behavior:
+      - Never upgrade an abstention to acceptance without new admissible evidence.
+    acceptance_criteria:
+      - A claim lacking admissible evidence yields an explicit abstention state.
+    implementation_references:
+      - "src/strix/agent/verifier.py (INSUFFICIENT_EVIDENCE, UNVERIFIABLE)"
+      - "src/strix/verification/claims.py (INCOMPLETE_LINEAGE and related failure codes)"
+    verification_methods:
+      - "tests/agent/test_verifier.py (abstention statuses)"
+      - "tests/test_verification.py (failure codes)"
+    gaps_to_close:
+      - "Abstention exists per-claim; not yet a first-class cross-source reconciliation outcome."
+    status: partial
+
+  - id: STRIX-014
+    version: "0.2.0"
+    title: "Independently verifiable audit evidence"
+    gap: [GAP-003, GAP-001, GAP-002]
+    rationale: >
+      A third party must be able to verify what happened without re-running the pipeline.
+    preconditions:
+      - An ordered, tamper-evident record of run events exists.
+    required_behavior:
+      - Maintain an append-only, ordered, hash-chained event log per run.
+      - (Target) Sign or externally anchor audit checkpoints.
+    failure_behavior:
+      - Detect reordering / omission / mutation via chain breakage.
+    acceptance_criteria:
+      - (Target) Chain verification detects a tampered/omitted event without recompute.
+    implementation_references:
+      - "src/strix/canonical.py (hashing); src/strix/run_store.py (atomic, hash-verified persistence)"
+      - "src/strix/lakehouse/bronze.py (append-only provenance, per-ingestion only)"
+    verification_methods:
+      - "tests/test_run_store.py; tests/engineering/test_cli_replay_tamper.py (tamper matrix via recompute)"
+    gaps_to_close:
+      - "No ordered per-run event log; no hash chaining (previous_hash); no signatures."
+      - "Current tamper-evidence requires recompute via replay (not standalone-verifiable)."
+      - "FINDING (0B): the reconciliation layer reads bronze_artifact_id (an identifier, not a content hash) and the queried fact tables expose no hash column, so a tampered-content scenario cannot be detected there (SKIP test_invalid_artifact_hash_is_flagged). Content-integrity verification at the reconciliation layer requires hash capture + verification (future work)."
+    status: partial
+
+  - id: STRIX-015
+    version: "1.0.0"
+    title: "Deterministic replay"
+    gap: [GAP-003, GAP-001, GAP-002]
+    rationale: >
+      Reproducing a run from preserved inputs is the basis for integrity and
+      reproducibility guarantees.
+    preconditions:
+      - Run artifacts + manifest + raw bytes are preserved.
+    required_behavior:
+      - Recompute from preserved bytes; compare manifest vs stored vs recomputed hashes.
+      - Separate integrity failure (stored != manifest) from reproducibility failure (recomputed != stored).
+    failure_behavior:
+      - Report the specific stage(s) whose hashes mismatch; never reuse stored values as freshly computed.
+    acceptance_criteria:
+      - Tampering any stage artifact is detected at that stage.
+      - Replay excludes wall-clock fields and is itself deterministic.
+    implementation_references:
+      - "src/strix/replay.py:replay_run; src/strix/agent/replay.py:replay_agent_run; src/strix/engineering/replay.py:replay_engineering_run"
+    verification_methods:
+      - "tests/test_replay.py; tests/agent/test_agent_replay.py; tests/engineering/test_cli_replay_tamper.py"
+    caveats:
+      - "Replay recomputes with CURRENT code + recorded version strings; it is not an adversarial independent re-implementation."
+      - "Agent replay does not reproduce LLM stochastic wording (by design)."
+    status: implemented

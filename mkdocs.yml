@@ -71,6 +71,7 @@ nav:
       - Security: security.md
   - Usage:
       - Interactive mode: usage/interactive-mode.md
+      - Conversational research: usage/conversational-research.md
       - Command reference: usage/command-reference.md
       - Research runs: usage/research-runs.md
       - Replay: usage/replay.md
@@ -83,6 +84,16 @@ nav:
       - Adding reasoners: development/adding-reasoners.md
       - Roadmap: development/roadmap.md
       - Neuro-symbolic platform: development/neuro-symbolic-platform.md
+  - Research:
+      - Milestone 0 — Audit & baseline:
+          - Engineering audit: research/milestone-0/engineering-audit.md
+          - Gap coverage matrix: research/milestone-0/gap-coverage-matrix.md
+          - Requirements traceability: research/milestone-0/requirements-traceability.md
+          - Remediation report: research/milestone-0/remediation-report.md
+          - Comparative experiment design: research/milestone-0/comparative-experiment-design.md
+          - "Spec: M1 evidence interoperability": research/milestone-0/milestone-1-evidence-interoperability-spec.md
+          - "Spec: M2 execution assurance": research/milestone-0/milestone-2-execution-assurance-spec.md
+          - "Spec: M3 outcome certification": research/milestone-0/milestone-3-outcome-certification-spec.md
   - Reference:
       - Data models: reference/data-models.md
       - Artifact formats: reference/artifact-formats.md

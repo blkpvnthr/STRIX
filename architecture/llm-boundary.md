@@ -6,13 +6,26 @@ true. Authoritative numbers come only from deterministic calculations, and a
 deterministic verifier rejects any claim whose numbers or prose it cannot
 reproduce from the evidence.
 
-!!! warning "The current build calls no LLM"
-    STRIX's only reasoner today is `DeterministicDemoReasoner` — fixed,
-    auditable Python, **not** an LLM. **No external LLM API is called anywhere
-    in this codebase.** Everything below describes the *intended* boundary that
-    a future schema-constrained reasoner would sit behind. It is documented here
-    because the boundary is designed for it now; the feature itself is on the
-    [roadmap](development/roadmap.md).
+!!! note "Two execution paths — one is LLM-free, one calls a real external LLM"
+    STRIX has **two** distinct reasoning paths, and the same boundary principle
+    governs both:
+
+    - The **core pipeline** uses `DeterministicDemoReasoner`
+      (`src/strix/reasoning/`): fixed, auditable Python, **not** an LLM, with no
+      model call. The next few sections describe this path and the core
+      verifier in `src/strix/verification/claims.py`.
+    - The **agent subsystem** added a real external LLM proposer.
+      `src/strix/agent/openai_provider.py` defines `OpenAIProvider`, and
+      `src/strix/agent/orchestrator.py` imports it and calls
+      `provider.create_response(...)` so a hosted model can *propose* research
+      questions, candidate claims, and tool calls. The later section
+      [The agent subsystem](#the-agent-subsystem-a-real-llm-proposer) describes
+      how the boundary holds there.
+
+    The invariant shared by both paths: the model (or the deterministic
+    stand-in) only *proposes*; an independent deterministic verifier is the sole
+    authority on what is accepted. A future schema-constrained LLM adapter for
+    the core seam is on the [roadmap](development/roadmap.md).
 
 ## The reasoner seam
 
@@ -112,3 +125,41 @@ network and the clock — firmly outside the reproducible core. See the
 [roadmap](development/roadmap.md) for status and
 [Adding reasoners](development/adding-reasoners.md) for how the seam is
 extended.
+
+## The agent subsystem: a real LLM proposer
+
+Everything above describes the **core pipeline**, whose only reasoner today is
+the deterministic `DeterministicDemoReasoner`. STRIX also ships a separate
+**agent subsystem** — a conversational research path that **does** call an
+external LLM. It is important not to conflate the two:
+
+| | Core pipeline | Agent subsystem |
+| --- | --- | --- |
+| Reasoner | `DeterministicDemoReasoner` (`src/strix/reasoning/`) — no LLM | Hosted LLM via `OpenAIProvider` (`src/strix/agent/openai_provider.py`) |
+| Entry point | `Reasoner.analyze(spec, evidence)` | `src/strix/agent/orchestrator.py` model loop |
+| Verifier | `src/strix/verification/claims.py` | `src/strix/agent/verifier.py` (+ `calculations.py`) |
+
+Even though a real LLM runs in the agent path, its output cannot decide what is
+true or reach the user unverified. The boundary holds for four concrete reasons:
+
+- **The LLM only proposes `PENDING` claims.** A model-authored
+  `ClaimVerification` can only carry `status == PENDING`
+  (`src/strix/agent/models.py`); it can never set its own `VERIFIED` status. The
+  independent verifier assigns every other status.
+- **Verification runs after the model loop, not during it.** The orchestrator
+  first runs the provider loop — `provider.create_response(...)`
+  (`orchestrator.py:259`) — to gather candidate claims, then resolves citations
+  and calls `verify_claims(...)` (`orchestrator.py:146`). Only claims the
+  verifier marks `VERIFIED` are kept; the rest are reported as unresolved, never
+  as verified findings.
+- **The verifier shares none of the LLM's reasoning.** The verification path —
+  `src/strix/agent/verifier.py`, `src/strix/agent/calculations.py`, and the core
+  `src/strix/verification/claims.py` — imports **no** LLM library. It recomputes
+  values independently (`calculations.recompute`) rather than trusting the model.
+- **Assembly is fail-closed.** `src/strix/agent/response_validator.py`'s
+  `validate_answer` raises `ResponseValidationError` if any fail-closed invariant
+  breaks, so a malformed or unverifiable response is rejected rather than shown.
+
+The verifier is the authoritative acceptance boundary. The LLM — like the
+network and the clock — proposes from outside the trusted core; it never
+certifies its own output.

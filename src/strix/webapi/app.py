@@ -37,6 +37,8 @@ from strix.webapi.service import ResearchService
 class ResearchRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     as_of: str | None = None
+    #: Conversation thread to continue (follow-ups). Omitted → a new thread.
+    thread_id: str | None = Field(default=None, max_length=64)
 
 
 def create_app(
@@ -73,9 +75,9 @@ def create_app(
         }
 
     @app.post("/api/research")
-    def submit(request: ResearchRequest) -> dict[str, str]:
-        job = service.submit(request.question, request.as_of)
-        return {"research_id": job.id}
+    def submit(request: ResearchRequest) -> dict[str, str | None]:
+        job = service.submit(request.question, request.as_of, request.thread_id)
+        return {"research_id": job.id, "thread_id": job.thread_id}
 
     @app.get("/api/research/{research_id}")
     def status(research_id: str) -> JSONResponse:

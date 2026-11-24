@@ -370,7 +370,133 @@ strix warehouse status | profile | reconcile | verify
 strix warehouse lineage --dataset NAME --key NATURAL_KEY
 ```
 
+### dbt transformation layer (DE-5)
+
+A dbt project turns the warehouse into analyst-ready **marts** (staging →
+intermediate → marts) with **DuckDB** operational and **Snowflake** optional. dbt is
+invoked only through a controlled runner (fixed executable, allow-listed subcommand,
+validated selection, **no shell**); the model never gets raw SQL. A mart value is
+never "verified" by being published — `strix transform validate` independently
+recomputes supported values from preserved evidence with the Decimal calculators. See
+[`docs/data-engineering/de-5-dbt-transformations.md`](docs/data-engineering/de-5-dbt-transformations.md).
+
+#### Warehouse → mart transformation flow
+
+```mermaid
+flowchart LR
+  subgraph WH["DuckDB warehouse (DE-4)"]
+    F["facts + dimensions"]
+  end
+  F --> STG["staging<br/>typed views<br/>lineage preserved"]
+  STG --> INT["intermediate<br/>returns · vol · drawdown<br/>PIT · concept mapping"]
+  INT --> M["marts (tables)"]
+  subgraph M2["marts"]
+    MK["markets"]; FU["fundamentals"]; MA["macroeconomics"]; RE["research"]
+  end
+  M --> M2
+```
+
+#### dbt model dependencies (excerpt)
+
+```mermaid
+flowchart TD
+  src["source: warehouse.fact_*"] --> stg["stg_* (10)"]
+  stg --> imd["int_market_daily"]
+  imd --> idr["int_daily_returns"]
+  imd --> ivol["int_rolling_volatility"]
+  imd --> idd["int_rolling_drawdown"]
+  idr --> icorr["int_cross_asset_correlation"]
+  idr --> irel["int_benchmark_relative_returns"]
+  stg --> isel["int_financial_period_selection"]
+  seed["seed: sec_concept_map"] --> isel
+  isel --> ialign["int_financial_statement_alignment"]
+  ivol --> mvol["mart_market_volatility"]
+  idd --> mdd["mart_market_drawdown"]
+  icorr --> mcorr["mart_equity_correlations"]
+  ialign --> mratio["mart_financial_ratios"]
+```
+
+#### Financial calculation lineage
+
+```mermaid
+flowchart LR
+  BR["Bronze artifact<br/>(raw bytes, SHA-256)"] --> SV["Silver observation<br/>(typed Decimal)"]
+  SV --> WF["warehouse fact row"]
+  WF --> IN["intermediate inputs"]
+  IN --> MV["mart value<br/>(SQL, versioned contract)"]
+  MV -.carries.-> EV["numerator/denominator · formula_version · accession · bronze_artifact_id"]
+```
+
+#### Historical revision propagation
+
+```mermaid
+flowchart TD
+  COR["corrected / restated source observation"] --> SILVER["Silver: new natural key<br/>(accession / realtime_start)"]
+  SILVER --> LOAD["warehouse incremental load<br/>(update, not duplicate)"]
+  LOAD --> REBUILD["dbt build --select int_market_daily+"]
+  REBUILD --> WIN["all dependent rolling windows recomputed"]
+  REBUILD --> RATIO["first-filed vs restated retained for PIT"]
+```
+
+#### Independent verification architecture
+
+```mermaid
+flowchart LR
+  MART["dbt mart value (SQL engine)"] --> CMP{"compare<br/>within contract tolerance"}
+  WF["warehouse fact inputs"] --> PY["Decimal recompute<br/>strix.agent.calculations"]
+  PY --> CMP
+  CMP -->|agree| OK["confirmed (+ evidence artifacts)"]
+  CMP -->|differ| DIS["discrepancy (fail signal)"]
+  MART -. never self-certifies .-> CMP
+```
+
+#### Mart → research-agent integration
+
+```mermaid
+flowchart LR
+  QN["research question"] --> AG["agent / tools"]
+  AG --> MARTS["marts (read-only)"]
+  MARTS --> OBS["observations + units + evidence"]
+  OBS --> VF["independent verifier recomputes"]
+  VF --> ANS["verified answer"]
+  AG -. no raw SQL · no verdicts .-> MARTS
+```
+
+#### Transform CLI
+
+```bash
+strix transform init [--with-deps]              # profile + schema + seed + parse
+strix transform run | build | test [--select S] [--full-refresh]
+strix transform docs                            # catalog + manifest + index.html
+strix transform status | profile
+strix transform lineage --select MODEL
+strix transform validate --symbol SPY --pair SPY,QQQ --cik CIK0000320193
+```
+
 ---
+
+## Research & engineering audit
+
+A commit-specific engineering audit and a formal research baseline live under
+[`docs/research/milestone-0/`](docs/research/milestone-0/) (also served in the MkDocs
+site under **Research → Milestone 0**):
+
+- [Engineering audit](docs/research/milestone-0/engineering-audit.md) — the ten
+  infrastructure components classified (implemented / partial / missing) against source
+  at a pinned commit, with the corrected GAP-001/002/003 definitions.
+- [Gap coverage matrix](docs/research/milestone-0/gap-coverage-matrix.md) and
+  [requirements traceability](docs/research/milestone-0/requirements-traceability.md) —
+  fifteen formal requirements (STRIX-001…015), each traced to source and tests; the
+  machine-readable source of truth is
+  [`requirements-baseline.yaml`](docs/research/milestone-0/requirements-baseline.yaml).
+- [Remediation report](docs/research/milestone-0/remediation-report.md) — full test
+  results, preserved known gaps, and a feasibility / go-no-go recommendation.
+- [Comparative experiment design](docs/research/milestone-0/comparative-experiment-design.md)
+  and the Milestone 1–3 specifications.
+
+> These documents record established implementation facts and *falsifiable* research
+> hypotheses separately. No novelty, performance, patentability, or deployment-readiness
+> is claimed; the hypotheses are untested by design at this stage.
 
 ## Development
 

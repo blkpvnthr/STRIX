@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: int_market_daily
+    description: "Grain: (instrument, session_date). Base session model: session index, prior close, daily simple + log returns."
+  - name: int_daily_returns
+    description: "Grain: (instrument, session_date) with a defined return. Shared return input for relative/correlation."
+  - name: int_cumulative_returns
+    description: "Grain: (instrument, session_date). Cumulative price return from each instrument's first session."
+  - name: int_rolling_volatility
+    description: "Grain: (instrument, session_date). Rolling 5/10/20/60 annualized realized volatility with sample sizes."
+  - name: int_rolling_drawdown
+    description: "Grain: (instrument, session_date). Running peak and drawdown from peak."
+  - name: int_benchmark_relative_returns
+    description: "Grain: (instrument, session_date), non-benchmark. Daily excess return vs SPY on aligned sessions."
+  - name: int_financial_facts_ranked
+    description: "Grain: raw SEC observation. Adds first-/latest-filed rank per reporting slot (restatement handling)."
+  - name: int_sec_concept_mapping
+    description: "Grain: ranked SEC observation mapped to a canonical metric via the seed."
+  - name: int_financial_period_selection
+    description: "Grain: first-filed (cik, metric, unit, period_start, period_end). PIT-honest with period_type classification."
+  - name: int_financial_statement_alignment
+    description: "Grain: (cik, fiscal_year, fiscal_period, period_end, period_type). Metrics pivoted; no summing of overlapping durations."
+  - name: int_economic_revisions
+    description: "Grain: economic observation. FRED vintage rank; BLS has no vintage (documented)."
+  - name: int_economic_pit
+    description: "Grain: (series_id, observation_date) as-of a cutoff. Strict mode excludes vintage-less series."
+  - name: int_treasury_maturity_alignment
+    description: "Grain: observation_date. Par yields pivoted to maturity columns (percent)."
+  - name: int_sector_etf_performance
+    description: "Grain: sector ETF present. Full-window return absolute + SPY-relative."
+  - name: int_cross_asset_correlation
+    description: "Grain: unordered instrument pair. Pearson correlation of aligned daily returns."
+  - name: int_market_regime_features
+    description: "Grain: instrument. Descriptive regime features (return, vol, drawdown, trend)."

@@ -1,0 +1,39 @@
+version: 2
+
+seeds:
+  - name: sec_concept_map
+    description: >
+      Explicit, documented mapping from SEC XBRL taxonomy concepts to canonical
+      STRIX financial metrics and statement groupings. Issuer-specific taxonomy
+      gaps are handled by the ABSENCE of a mapping (the metric is simply
+      unavailable for that issuer) — values are never invented.
+    config:
+      column_types:
+        taxonomy: varchar
+        concept: varchar
+        metric: varchar
+        statement: varchar
+    columns:
+      - name: concept
+        data_tests: [not_null]
+      - name: metric
+        data_tests: [not_null]
+
+  - name: economic_series_map
+    description: >
+      Explicit mapping from provider series ids to authoritative economic concepts,
+      seasonal-adjustment status, and units. Keyed by (series_id, source) so a FRED
+      id is never confused with a BLS id, and incompatible series are never combined.
+    config:
+      column_types:
+        series_id: varchar
+        source: varchar
+        concept: varchar
+        seasonal_adjustment: varchar
+        unit: varchar
+        frequency_expected: varchar
+    columns:
+      - name: series_id
+        data_tests: [not_null]
+      - name: concept
+        data_tests: [not_null]

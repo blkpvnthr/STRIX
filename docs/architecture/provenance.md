@@ -201,6 +201,76 @@ compares every stage hash to the manifest. See
 [Replaying a run](../usage/replay.md) for the full walkthrough; the storage and
 integrity mechanics are in [Storage](storage.md).
 
+## The agent (conversational) evidence path
+
+The walkthrough above traces the **v1 core pipeline** (`RUN-20260809-001`). The
+conversational agent subsystem collects evidence differently — from live web and
+data sources rather than a single bundled fixture — but rests on the same
+hash-anchored identity and atomic-persistence foundations.
+
+### Evidence collection and content-addressed identity
+
+`EvidenceCollector.register` (`src/strix/agent/evidence_collector.py`) takes the
+raw bytes of a source, computes their SHA-256 (`content_hash = sha256_hex(raw)`),
+and derives the evidence id from that hash via
+`AgentEvidence.make_id(content_hash, source_url, anchor)`
+(`src/strix/agent/models.py`). Identical sources therefore deduplicate: if the
+derived id already exists, the existing record is returned unchanged. Raw bytes
+are kept in an **in-memory** artifact store keyed by content hash
+(`artifact_path = "artifacts/<content_hash>.bin"`) until the run is persisted.
+
+Derived numeric series are bound to their source: `add_series` requires a
+`source_evidence_id` that is already registered and raises `KeyError` otherwise,
+so a series can never cite evidence that was never preserved.
+
+Content-derived ids across the agent models use the same construction as the rest
+of STRIX — `canonical.make_id(prefix, payload)` (`src/strix/canonical.py`) hashes
+a canonical JSON payload to `PREFIX-<sha256[:12]>`.
+
+### Citation handles vs canonical evidence identity
+
+The hosted web-search tool hands the model provider-native citation handles, not
+STRIX evidence ids. `resolve_claim_citations` (`src/strix/agent/citations.py`)
+rewrites each claim's `evidence_ids` to canonical, resolvable ids: a known handle
+or URL is mapped to the evidence id the collector preserved, and an
+**unresolvable handle is dropped and recorded** (never surfaced as if it were
+verified). The mapping is established by `EvidenceCollector.register_alias`
+(`src/strix/agent/evidence_collector.py`), which is **first-writer-wins** and
+never shadows a real evidence id — it is a no-op when the alias is empty, when the
+target evidence is unknown, or when the alias string collides with an existing
+evidence id. A stable citation marker therefore never flips to a different source
+mid-run.
+
+### Source artifacts and persistence
+
+Agent runs are written through the same atomic machinery as core runs.
+`src/strix/agent/persistence.py` assembles the manifest, claims, evidence, and
+preserved raw artifacts and commits them via `src/strix/run_store.py`, which
+writes each file with a temp-file + `fsync` + `os.replace` sequence
+(`_write_atomic`) and commits the staging directory with a single atomic rename.
+Preserved raw bytes are re-read and their SHA-256 **re-verified** against the
+original before the run is committed (`RunStore._preserve_raw`); a mismatch aborts
+the run and nothing is committed.
+
+### What agent replay does — and does not — prove
+
+`src/strix/agent/replay.py` re-opens a persisted agent run and **re-runs the
+independent verifier** over the recorded claims (`verify_claims`), then checks
+three integrity properties: that preserved artifact hashes still match, that
+citations still resolve, and that epistemic classifications have not collapsed
+into verdicts (`hash_matches`, `citation_integrity`, `classification_integrity`).
+
+Two limits are deliberate:
+
+- Replay does **not** regenerate the model's stochastic wording. It proves the
+  numbers, citations, and classifications hold — not that the exact prose
+  reappears.
+- Replay recomputes using the **current** code plus the **recorded version
+  strings** from the manifest (`verifier_version`, `calculation_version`,
+  `agent_version`, and so on, written by `persistence.py`). It therefore detects
+  tampering, nondeterminism, and contract drift — but it is **not** an
+  adversarial, independent re-implementation of the pipeline.
+
 ## What provenance does and does not establish
 
 - It **does** establish that each reported number was computed from a specific
@@ -214,6 +284,18 @@ integrity mechanics are in [Storage](storage.md).
     report to source. It does **not** prove the source was truthful, complete,
     or free of error. STRIX preserves and reproduces what the source said; it
     does not audit the source itself.
+
+!!! warning "Hashes are unsigned — integrity, not identity attestation"
+    STRIX run manifests record **unsigned** SHA-256 content hashes. They
+    establish *reproducibility and integrity from the preserved bytes* — that the
+    bytes STRIX read have not changed and recompute to the same result. They do
+    **not** constitute a cryptographic attestation of authorship or identity.
+    There is no digital signature, trust root, external timestamp authority, or
+    keyed MAC (HMAC/ed25519/etc.) anywhere in the pipeline at this commit — a
+    party who can rewrite both the raw bytes and the recorded manifest hash can
+    produce a self-consistent run. Hash verification proves the archive is
+    internally consistent, not that it originated from a particular source or
+    signer.
 
 !!! warning "Synthetic data / not investment advice"
     "Demonstration Company" (DEMO) is fictional and its figures are synthetic.

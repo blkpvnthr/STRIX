@@ -1,0 +1,10 @@
+series_id,source,concept,seasonal_adjustment,unit,frequency_expected
+CPIAUCSL,fred,cpi_index,SA,index_1982_84_100,monthly
+CPIAUCNS,fred,cpi_index,NSA,index_1982_84_100,monthly
+CUUR0000SA0,bls,cpi_index,NSA,index_1982_84_100,monthly
+UNRATE,fred,unemployment_rate,SA,percent,monthly
+PAYEMS,fred,nonfarm_payrolls,SA,thousands_persons,monthly
+FEDFUNDS,fred,fed_funds_rate,NA,percent,monthly
+DFF,fred,fed_funds_rate,NA,percent,daily
+GDPC1,fred,real_gdp,SA,billions_chained_2017_usd,quarterly
+LNS14000000,bls,unemployment_rate,SA,percent,monthly

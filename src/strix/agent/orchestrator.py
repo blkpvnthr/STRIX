@@ -24,26 +24,36 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+from strix.agent import AGENT_VERSION
 from strix.agent.budget import BudgetSnapshot, BudgetTracker
+from strix.agent.citations import resolve_claim_citations
 from strix.agent.config import AgentConfig, merged_environment
 from strix.agent.connectors.market_data import AlpacaConnector
 from strix.agent.evidence_collector import EvidenceCollector
+from strix.agent.memory import ThreadContext
 from strix.agent.models import (
     AgentClaim,
     AgentVerificationStatus,
     ResearchAnswer,
+    ResearchResponse,
     SourceKind,
 )
 from strix.agent.openai_provider import OpenAIProvider
 from strix.agent.persistence import persist_agent_run
 from strix.agent.prompts import market_research_instructions
-from strix.agent.response_builder import build_answer
+from strix.agent.question import classify_question
+from strix.agent.response_builder import build_answer, build_response
 from strix.agent.response_validator import validate_answer
+from strix.agent.sanity import check_claims
+from strix.agent.synthesis import synthesize
 from strix.agent.tool_registry import ToolContext, ToolRegistry
 from strix.agent.verifier import verify_claims
 from strix.errors import BudgetExceededError
 
 ProgressFn = Callable[[str], None]
+
+#: Model calls held back from the research loop so synthesis always has budget.
+SYNTHESIS_RESERVED_CALLS = 1
 
 
 @dataclass(frozen=True)
@@ -53,6 +63,7 @@ class ResearchOutcome:
     run_dir: Path
     usage: BudgetSnapshot
     claims: tuple[AgentClaim, ...]
+    response: ResearchResponse | None = None
 
 
 def run_research_question(
@@ -68,12 +79,14 @@ def run_research_question(
     progress: ProgressFn | None = None,
     cancel_check: Callable[[], bool] | None = None,
     sec_fetch: Any = None,
+    prior_context: ThreadContext | None = None,
 ) -> ResearchOutcome:
     """Research one question end-to-end and persist the run."""
     now_fn = clock or (lambda: datetime.now(UTC))
     now = now_fn()
     as_of = as_of or now.date()
     emit = progress or (lambda _m: None)
+    prior_context = prior_context or ThreadContext.empty()
 
     provider = provider or OpenAIProvider(config)
     alpaca = alpaca or AlpacaConnector.from_env(merged_environment())
@@ -89,10 +102,17 @@ def run_research_question(
         sec_fetch=sec_fetch,
     )
 
+    research_question = classify_question(
+        question, as_of=as_of, has_prior_context=prior_context.has_prior
+    )
+
     tools = list(registry.function_schemas())
     if config.web_search_enabled:
         tools.append({"type": "web_search"})
     instructions = _system_instructions(as_of)
+
+    # Reserve a model call for the final synthesis step (spec §12).
+    max_loop_calls = max(1, config.max_model_calls - SYNTHESIS_RESERVED_CALLS)
 
     limitations: list[str] = []
     exhausted_reason = _run_loop(
@@ -109,16 +129,48 @@ def run_research_question(
         emit=emit,
         limitations=limitations,
         cancel_check=cancel_check,
+        max_loop_calls=max_loop_calls,
     )
 
+    emit("Resolving citations")
+    resolution = resolve_claim_citations(tuple(ctx.candidate_claims), collector)
+    if resolution.had_unresolved:
+        dangling = sum(len(v) for v in resolution.dropped.values())
+        limitations.append(
+            f"{dangling} web-search citation(s) could not be resolved to a preserved "
+            "source and were excluded; affected statements are shown as attributed, "
+            "not independently verified."
+        )
+
     emit("Independently verifying candidate claims")
-    verified_all = verify_claims(ctx.candidate_claims, collector, now=now)
+    verified_all = verify_claims(resolution.claims, collector, now=now)
     verified = tuple(
         c for c in verified_all if c.verification.status is AgentVerificationStatus.VERIFIED
     )
     unresolved = tuple(
         c for c in verified_all if c.verification.status is not AgentVerificationStatus.VERIFIED
     )
+
+    emit("Running data-quality sanity checks")
+    sanity_flags = check_claims(verified, collector, as_of=as_of)
+    for flag in sanity_flags:
+        limitations.append(f"Data-quality check [{flag.code}]: {flag.message}")
+
+    emit("Synthesizing analysis")
+    draft = synthesize(
+        question=research_question,
+        verified=verified,
+        unresolved=unresolved,
+        collector=collector,
+        sanity_flags=sanity_flags,
+        as_of=as_of,
+        now=now,
+        provider=provider,
+        budget=budget,
+        config=config,
+        prior_context=prior_context.summary or None,
+    )
+    limitations.extend(draft.limitations)
 
     _collect_limitations(limitations, verified, unresolved, exhausted_reason, config)
 
@@ -133,11 +185,26 @@ def run_research_question(
             now=now,
         )
 
+    diagnostics = {
+        "agent_version": AGENT_VERSION,
+        "question_intent": research_question.intent.value,
+        "forward_looking": str(research_question.is_forward_looking),
+    }
+
+    def make_response(run_id: str, answer: ResearchAnswer) -> ResearchResponse:
+        return build_response(
+            run_id=run_id,
+            question=research_question,
+            answer=answer,
+            draft=draft,
+            diagnostics=diagnostics,
+        )
+
     # Fail closed: validate before persisting (placeholder id; id is not validated).
     validate_answer(make_answer("RUN-PENDING"), collector, config)
 
     emit("Persisting research artifacts")
-    run_id, run_dir, answer = persist_agent_run(
+    run_id, run_dir, answer, response = persist_agent_run(
         state_dir,
         question=question,
         as_of=as_of.isoformat(),
@@ -145,6 +212,7 @@ def run_research_question(
         collector=collector,
         claims=verified_all,
         make_answer=make_answer,
+        make_response=make_response,
         usage=budget.snapshot(exhausted_reason=exhausted_reason),
         now=now,
     )
@@ -154,6 +222,7 @@ def run_research_question(
         run_dir=run_dir,
         usage=budget.snapshot(exhausted_reason=exhausted_reason),
         claims=verified_all,
+        response=response,
     )
 
 
@@ -172,19 +241,21 @@ def _run_loop(
     emit: ProgressFn,
     limitations: list[str],
     cancel_check: Callable[[], bool] | None = None,
+    max_loop_calls: int | None = None,
 ) -> str | None:
     """Drive the bounded tool loop. Returns an exhaustion reason or None."""
     model_input: Any = [{"role": "user", "content": question}]
     previous_id: str | None = None
+    loop_calls = max_loop_calls if max_loop_calls is not None else config.max_model_calls
 
-    for step in range(config.max_model_calls):
+    for step in range(loop_calls):
         if cancel_check is not None and cancel_check():
             return "cancelled by user"
         try:
             budget.ensure_can_call_model()
         except BudgetExceededError as exc:
             return str(exc)
-        emit(f"Researching (model call {step + 1}/{config.max_model_calls})")
+        emit(f"Researching (model call {step + 1}/{loop_calls})")
         response = provider.create_response(
             input=model_input,
             instructions=instructions,
@@ -252,7 +323,13 @@ def _system_instructions(as_of: date) -> str:
 
 
 def _register_web_citations(response: Any, collector: EvidenceCollector, now: datetime) -> None:
-    """Preserve url citations from hosted web search as evidence records."""
+    """Preserve url citations from hosted web search as evidence records.
+
+    Each preserved record is also aliased by every provider-native handle the
+    citation carries (the URL and any id-like markers the model may echo as an
+    ``evidence_id``), so a claim that cites ``turn…news…`` resolves to this
+    record instead of being rejected as unknown evidence (spec §8).
+    """
     raw = getattr(response, "output_text", "") or ""
     for citation in _iter_url_citations(response):
         url = citation.get("url")
@@ -261,7 +338,7 @@ def _register_web_citations(response: Any, collector: EvidenceCollector, now: da
         title = citation.get("title") or url
         snippet = citation.get("text") or citation.get("snippet")
         payload = json.dumps({"url": url, "title": title, "snippet": snippet}).encode("utf-8")
-        collector.register(
+        evidence = collector.register(
             source_type=SourceKind.WEB_SEARCH_RESULT,
             provider="Web search",
             source_title=str(title)[:300],
@@ -270,6 +347,14 @@ def _register_web_citations(response: Any, collector: EvidenceCollector, now: da
             source_url=str(url),
             excerpt=(str(snippet)[:2000] if snippet else _window(raw, citation)),
         )
+        collector.register_alias(str(url), evidence.evidence_id)
+        for marker in citation.get("markers", ()):
+            collector.register_alias(marker, evidence.evidence_id)
+
+
+#: Attributes on a citation annotation that may carry a provider-native handle
+#: the model could echo as an evidence id (never ``type``, which is shared).
+_MARKER_ATTRS = ("id", "ref_id", "reference", "source_id", "file_id", "citation_id")
 
 
 def _iter_url_citations(response: Any) -> list[dict[str, Any]]:
@@ -287,9 +372,20 @@ def _iter_url_citations(response: Any) -> list[dict[str, Any]]:
                             "text": getattr(ann, "text", None) or getattr(ann, "snippet", None),
                             "start": getattr(ann, "start_index", None),
                             "end": getattr(ann, "end_index", None),
+                            "markers": _annotation_markers(ann),
                         }
                     )
     return citations
+
+
+def _annotation_markers(ann: Any) -> tuple[str, ...]:
+    """Collect provider-native handle strings from a citation annotation."""
+    markers: list[str] = []
+    for attr in _MARKER_ATTRS:
+        value = getattr(ann, attr, None)
+        if isinstance(value, str) and value.strip():
+            markers.append(value.strip())
+    return tuple(dict.fromkeys(markers))
 
 
 def _window(text: str, citation: dict[str, Any]) -> str | None:

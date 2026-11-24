@@ -13,10 +13,11 @@ import { ResearchCard } from "./ResearchCard";
 import type { Evidence, HistoryItem, Meta, ResearchJob, ResearchResult } from "./types";
 
 const EXAMPLES = [
-  "What is the recent realized volatility of SPY?",
-  "How has SPY performed versus QQQ over the last 3 months?",
-  "What is the maximum drawdown of the Nasdaq-100 ETF this year?",
-  "How has Apple's quarterly revenue changed year over year?",
+  "How can I expect the market to perform tomorrow?",
+  "Should I expect bearish or bullish conditions?",
+  "Which sectors are outperforming?",
+  "Is Apple's operating margin improving?",
+  "What do current Treasury yields suggest?",
 ];
 
 export function App() {
@@ -25,6 +26,8 @@ export function App() {
   const [jobs, setJobs] = useState<ResearchJob[]>([]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
+  // The active conversation thread — follow-ups keep context (spec §10).
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [inspect, setInspect] = useState<{ ev: Evidence; result: ResearchResult; n: number } | null>(
     null,
   );
@@ -60,9 +63,10 @@ export function App() {
       setBusy(true);
       setQuestion("");
       try {
-        const id = await submitResearch(text);
+        const { researchId, threadId: tid } = await submitResearch(text, undefined, threadId);
+        setThreadId(tid);
         upsert({
-          research_id: id,
+          research_id: researchId,
           question: text,
           status: "queued",
           events: [],
@@ -70,7 +74,7 @@ export function App() {
           error: null,
           created_at: new Date().toISOString(),
         });
-        pollResearch(id, (job) => {
+        pollResearch(researchId, (job) => {
           upsert(job);
           if (["completed", "failed", "cancelled"].includes(job.status)) {
             setBusy(false);
@@ -90,7 +94,7 @@ export function App() {
         });
       }
     },
-    [busy, upsert, refreshHistory],
+    [busy, upsert, refreshHistory, threadId],
   );
 
   const openRun = useCallback(
@@ -124,7 +128,10 @@ export function App() {
         history={history}
         meta={meta}
         onPick={openRun}
-        onNew={() => setJobs([])}
+        onNew={() => {
+          setJobs([]);
+          setThreadId(null);
+        }}
       />
 
       <main className="flex min-w-0 flex-1 flex-col">

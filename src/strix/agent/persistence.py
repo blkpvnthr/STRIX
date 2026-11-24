@@ -18,8 +18,14 @@ from strix.agent.budget import BudgetSnapshot
 from strix.agent.calculations import CALC_VERSION
 from strix.agent.config import AgentConfig
 from strix.agent.evidence_collector import EvidenceCollector
-from strix.agent.models import AgentClaim, AgentVerificationStatus, ResearchAnswer
-from strix.agent.response_builder import render_answer
+from strix.agent.models import (
+    AgentClaim,
+    AgentVerificationStatus,
+    ResearchAnswer,
+    ResearchResponse,
+)
+from strix.agent.response_builder import render_answer, render_response
+from strix.agent.synthesis import SYNTHESIS_VERSION
 from strix.agent.verifier import VERIFIER_VERSION
 from strix.canonical import canonical_hash, pretty_json_bytes
 from strix.run_store import RunStore
@@ -36,8 +42,15 @@ def persist_agent_run(
     make_answer: Callable[[str], ResearchAnswer],
     usage: BudgetSnapshot,
     now: datetime,
-) -> tuple[str, Path, ResearchAnswer]:
-    """Write a complete agent run; return (run_id, run_dir, finalized answer)."""
+    make_response: Callable[[str, ResearchAnswer], ResearchResponse] | None = None,
+) -> tuple[str, Path, ResearchAnswer, ResearchResponse | None]:
+    """Write a complete agent run.
+
+    Returns ``(run_id, run_dir, finalized answer, finalized response | None)``.
+    When ``make_response`` is supplied, the structured conversational response is
+    built with the final run id and persisted as ``response.json`` / ``response.txt``,
+    and its canonical hash is recorded in the manifest for replay (spec §13).
+    """
     evidence_dumps = [e.model_dump() for e in collector.all_evidence()]
     series_dumps = [s.model_dump() for s in collector.all_series()]
     claim_dumps = [c.model_dump() for c in claims]
@@ -60,7 +73,7 @@ def persist_agent_run(
         f"{content_hash}.bin": raw for content_hash, raw in collector.all_artifacts().items()
     }
 
-    finalized: dict[str, ResearchAnswer] = {}
+    finalized: dict[str, object] = {}
 
     def finalize(run_id: str) -> tuple[dict[str, bytes], bytes]:
         answer = make_answer(run_id)
@@ -70,6 +83,10 @@ def persist_agent_run(
             for c in claims
             if c.verification.status is AgentVerificationStatus.VERIFIED
         ]
+        per_run = {
+            "answer.json": pretty_json_bytes(answer.model_dump()),
+            "answer.txt": render_answer(answer).encode("utf-8"),
+        }
         manifest = {
             "mode": "agent_research",
             "run_id": run_id,
@@ -86,10 +103,14 @@ def persist_agent_run(
             "verified_count": len(verified_ids),
             "usage": usage.model_dump(),
         }
-        per_run = {
-            "answer.json": pretty_json_bytes(answer.model_dump()),
-            "answer.txt": render_answer(answer).encode("utf-8"),
-        }
+        if make_response is not None:
+            response = make_response(run_id, answer)
+            finalized["response"] = response
+            response_dump = response.model_dump()
+            per_run["response.json"] = pretty_json_bytes(response_dump)
+            per_run["response.txt"] = render_response(response).encode("utf-8")
+            manifest["synthesis_version"] = SYNTHESIS_VERSION
+            manifest["response_hash"] = canonical_hash(response_dump)
         return per_run, pretty_json_bytes(manifest)
 
     store = RunStore(state_dir)
@@ -99,4 +120,9 @@ def persist_agent_run(
         finalize=finalize,
         today=now.date(),
     )
-    return run_id, run_dir, finalized["answer"]
+    return (
+        run_id,
+        run_dir,
+        finalized["answer"],  # type: ignore[return-value]
+        finalized.get("response"),
+    )

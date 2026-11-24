@@ -1,0 +1,10 @@
+# Optional dbt package dependencies.
+#
+# dbt_utils is declared for teams that want its cross-database helpers, but the
+# STRIX transformation models deliberately DO NOT depend on it: every helper the
+# marts need is implemented in macros/ so that `dbt build` works fully offline
+# without `dbt deps`. Run `strix transform init --with-deps` (or `dbt deps`) only
+# if you intend to use dbt_utils in custom analyses.
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.1.0", "<2.0.0"]

@@ -14,14 +14,18 @@ export async function getHistory(): Promise<HistoryItem[]> {
   return data.runs;
 }
 
-export async function submitResearch(question: string, asOf?: string): Promise<string> {
+export async function submitResearch(
+  question: string,
+  asOf?: string,
+  threadId?: string | null,
+): Promise<{ researchId: string; threadId: string | null }> {
   const resp = await fetch("/api/research", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, as_of: asOf || null }),
+    body: JSON.stringify({ question, as_of: asOf || null, thread_id: threadId || null }),
   });
-  const data = await json<{ research_id: string }>(resp);
-  return data.research_id;
+  const data = await json<{ research_id: string; thread_id: string | null }>(resp);
+  return { researchId: data.research_id, threadId: data.thread_id };
 }
 
 export async function getResearch(id: string): Promise<ResearchJob> {

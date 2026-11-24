@@ -1,0 +1,5 @@
+# No enforced package dependencies: the STRIX transformation models are fully
+# self-contained (see macros/) so `dbt build` works offline without `dbt deps`.
+# To add dbt_utils for custom analyses, copy packages.example.yml over this file
+# and run `dbt deps` (requires network).
+packages: []
