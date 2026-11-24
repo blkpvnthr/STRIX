@@ -367,6 +367,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="exit 1 when any candidate is quarantined (display-only flag; "
         "never part of the run's deterministic content)",
     )
+
+    compute_parser = subparsers.add_parser(
+        "compute",
+        help="inspect the native quantitative computing backends",
+        description=(
+            "Report the native computation backends (R1 native quantitative "
+            "layer): their supported operations, numerical precision, and "
+            "independent-validation status."
+        ),
+    )
+    compute_sub = compute_parser.add_subparsers(dest="compute_command", required=True)
+    compute_sub.add_parser("backends", help="list computational backends and their status")
+    compute_sub.add_parser("operations", help="list the supported native operations")
     return parser
 
 
@@ -413,6 +426,8 @@ def main(
             return run_transform(args, out=out, err=err, environ=environ)
         if args.command == "engineer":
             return _cmd_engineer_compile(args, state_dir, out, err, clock)
+        if args.command == "compute":
+            return _cmd_compute(args, out, err)
         return _cmd_research(
             state_dir,
             out=out,
@@ -434,6 +449,26 @@ def main(
 
 def _default_input() -> str:
     return input()
+
+
+def _cmd_compute(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
+    """Inspect the native quantitative computing backends (R1 §25)."""
+    from strix.native.backends.python_reference import PythonReferenceBackend
+
+    info = PythonReferenceBackend().info()
+    if args.compute_command == "operations":
+        out.write(f"Native operations on backend '{info.kind.value}':\n")
+        for operation in info.supported_operations:
+            out.write(f"  {operation}\n")
+        return 0
+    out.write("Computational backends:\n")
+    out.write(f"  kind:                {info.kind.value}\n")
+    out.write(f"  version:             {info.version}\n")
+    out.write(f"  numerical precision: {info.numerical_precision}\n")
+    out.write(f"  validation status:   {info.validation_status.value}\n")
+    out.write(f"  platform:            {info.platform}\n")
+    out.write(f"  operations:          {len(info.supported_operations)}\n")
+    return 0
 
 
 # --------------------------------------------------------------------------
