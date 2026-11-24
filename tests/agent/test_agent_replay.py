@@ -6,6 +6,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+import pytest
 from tests.agent.agent_fixtures import build_config
 from tests.agent.test_orchestrator import (
     _NOW,
@@ -15,7 +16,7 @@ from tests.agent.test_orchestrator import (
 )
 
 from strix.agent.replay import replay_agent_run
-from strix.errors import ReplayError
+from strix.errors import ReplayError, RunNotFoundError, RunStoreError
 
 from strix.agent.orchestrator import run_research_question  # isort: skip
 
@@ -186,3 +187,102 @@ def test_replay_rejects_non_agent_run(tmp_path: Path) -> None:
         assert "not an agent_research run" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected ReplayError")
+
+
+# --------------------------------------------------------------------------
+# Negative paths: missing, malformed, and non-reproducible agent artifacts.
+# These exercise the error branches in replay_agent_run / _replay_response that
+# the happy-path and single-field tamper tests above do not reach.
+# --------------------------------------------------------------------------
+
+
+def _run_dir_for(run_id: str, tmp_path: Path) -> Path:
+    return tmp_path / run_id
+
+
+def test_replay_missing_claims_artifact_raises_not_found(tmp_path: Path) -> None:
+    # A required agent artifact that is absent is a hard failure, not a silent
+    # pass: store.load_json surfaces RunNotFoundError (uncaught by replay).
+    run_id = _make_run(tmp_path)
+    (_run_dir_for(run_id, tmp_path) / "claims.json").unlink()
+    with pytest.raises(RunNotFoundError, match=r"missing artifact claims\.json"):
+        replay_agent_run(run_id, tmp_path)
+
+
+def test_replay_malformed_claims_json_text_raises_store_error(tmp_path: Path) -> None:
+    # Non-JSON bytes in a core artifact are reported as an invalid-JSON store
+    # error before any model reconstruction is attempted.
+    run_id = _make_run(tmp_path)
+    (_run_dir_for(run_id, tmp_path) / "claims.json").write_text("not json at all")
+    with pytest.raises(RunStoreError, match="not valid JSON"):
+        replay_agent_run(run_id, tmp_path)
+
+
+def test_replay_structurally_invalid_claims_raise_replay_error(tmp_path: Path) -> None:
+    # Valid JSON but a claim that violates the model contract (missing required
+    # fields) must raise a ReplayError flagging malformed agent artifacts.
+    run_id = _make_run(tmp_path)
+    path = _run_dir_for(run_id, tmp_path) / "claims.json"
+    path.write_text(json.dumps([{"claim_id": "CL-broken"}]))
+    with pytest.raises(ReplayError, match="malformed agent artifacts"):
+        replay_agent_run(run_id, tmp_path)
+
+
+def test_replay_naive_timestamp_in_evidence_rejected(tmp_path: Path) -> None:
+    # Evidence timestamps are AwareDatetime: a naive (no-timezone) retrieved_at
+    # fails model validation and surfaces as a malformed-artifact ReplayError.
+    run_id = _make_run(tmp_path)
+    path = _run_dir_for(run_id, tmp_path) / "evidence.json"
+    evidence = json.loads(path.read_text())
+    assert evidence, "expected at least one evidence record"
+    evidence[0]["retrieved_at"] = "2026-11-22T12:00:00"  # naive: no offset
+    path.write_text(json.dumps(evidence))
+    with pytest.raises(ReplayError, match="malformed agent artifacts"):
+        replay_agent_run(run_id, tmp_path)
+
+
+def test_replay_reproducibility_failure_when_stored_value_diverges(tmp_path: Path) -> None:
+    # Tamper the stored computed_value. Recomputation from the preserved series
+    # is unaffected, so the recomputed value no longer matches what was stored:
+    # the claim must FAIL replay even though its status is still 'verified'.
+    run_id = _make_run(tmp_path)
+    path = _run_dir_for(run_id, tmp_path) / "claims.json"
+    claims = json.loads(path.read_text())
+    claims[0]["verification"]["computed_value"] = "9.999999"
+    path.write_text(json.dumps(claims))
+    outcome = replay_agent_run(run_id, tmp_path)
+    assert outcome.passed is False
+    claim = outcome.claims[0]
+    assert claim.matches is False
+    assert claim.stored_value != claim.recomputed_value
+    # The verdict itself is unchanged; only the value reproduces differently.
+    assert claim.recomputed_status == "verified"
+
+
+def test_replay_structurally_invalid_response_raises_replay_error(tmp_path: Path) -> None:
+    # A response.json that is valid JSON but not a well-formed ResearchResponse
+    # (missing required fields) is a malformed-response ReplayError, not a
+    # silently-absent response.
+    run_id, run_dir = _make_conversational_run(tmp_path)
+    (run_dir / "response.json").write_text(json.dumps({"run_id": run_id}))
+    with pytest.raises(ReplayError, match=r"malformed response\.json"):
+        replay_agent_run(run_id, tmp_path)
+
+
+def test_replay_detects_response_citing_unresolved_evidence(tmp_path: Path) -> None:
+    # A supporting fact that cites an evidence id with no preserved record must
+    # fail citation integrity (and thus the run), distinct from hash tampering.
+    run_id, run_dir = _make_conversational_run(tmp_path)
+    path = run_dir / "response.json"
+    data = json.loads(path.read_text())
+    assert data["supporting_facts"], "expected at least one supporting fact"
+    data["supporting_facts"][0]["evidence_ids"] = [
+        *data["supporting_facts"][0]["evidence_ids"],
+        "EV-does-not-exist",
+    ]
+    path.write_text(json.dumps(data))
+    outcome = replay_agent_run(run_id, tmp_path)
+    assert outcome.response is not None
+    assert outcome.response.citation_integrity is False
+    assert any("unresolved" in p for p in outcome.response.problems)
+    assert outcome.passed is False

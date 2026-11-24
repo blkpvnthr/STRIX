@@ -475,6 +475,29 @@ strix transform validate --symbol SPY --pair SPY,QQQ --cik CIK0000320193
 
 ---
 
+## Research & engineering audit
+
+A commit-specific engineering audit and a formal research baseline live under
+[`docs/research/milestone-0/`](docs/research/milestone-0/) (also served in the MkDocs
+site under **Research → Milestone 0**):
+
+- [Engineering audit](docs/research/milestone-0/engineering-audit.md) — the ten
+  infrastructure components classified (implemented / partial / missing) against source
+  at a pinned commit, with the corrected GAP-001/002/003 definitions.
+- [Gap coverage matrix](docs/research/milestone-0/gap-coverage-matrix.md) and
+  [requirements traceability](docs/research/milestone-0/requirements-traceability.md) —
+  fifteen formal requirements (STRIX-001…015), each traced to source and tests; the
+  machine-readable source of truth is
+  [`requirements-baseline.yaml`](docs/research/milestone-0/requirements-baseline.yaml).
+- [Remediation report](docs/research/milestone-0/remediation-report.md) — full test
+  results, preserved known gaps, and a feasibility / go-no-go recommendation.
+- [Comparative experiment design](docs/research/milestone-0/comparative-experiment-design.md)
+  and the Milestone 1–3 specifications.
+
+> These documents record established implementation facts and *falsifiable* research
+> hypotheses separately. No novelty, performance, patentability, or deployment-readiness
+> is claimed; the hypotheses are untested by design at this stage.
+
 ## Development
 
 ```bash

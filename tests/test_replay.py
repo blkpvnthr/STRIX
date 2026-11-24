@@ -81,6 +81,25 @@ class TestReplayTamperDetection:
         assert not outcome.passed
         assert "unreadable" in stage_map(outcome)["Source facts hash"].detail
 
+    def test_missing_stage_artifact_detected(self, result, state_dir: Path) -> None:
+        # A deleted stage artifact (vs. merely corrupt bytes) must still be
+        # caught: the stored hash cannot be recomputed, so the stage fails.
+        (result.run_directory / "claims.json").unlink()
+        outcome = replay_run(result.manifest.run_id, state_dir)
+        assert not outcome.passed
+        assert "unreadable" in stage_map(outcome)["Claims hash"].detail
+
+    def test_extra_rows_in_stage_artifact_detected(self, result, state_dir: Path) -> None:
+        # An appended (extra) record changes the stored artifact hash: the
+        # stored content no longer matches the manifest's recorded hash.
+        claims_path = result.run_directory / "claims.json"
+        payload = json.loads(claims_path.read_text())
+        payload.append(dict(payload[0]))
+        claims_path.write_text(json.dumps(payload, indent=2))
+        outcome = replay_run(result.manifest.run_id, state_dir)
+        assert not outcome.passed
+        assert not stage_map(outcome)["Claims hash"].matched
+
     def test_manifest_with_path_source_name_cannot_read_outside_run(
         self, result, state_dir: Path
     ) -> None:
