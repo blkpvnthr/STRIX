@@ -234,3 +234,65 @@ def test_dangling_web_handle_is_excluded_and_never_leaks(tmp_path: Path) -> None
     assert _DANGLING_HANDLE not in rendered
     claims_json = (outcome.run_dir / "claims.json").read_text()
     assert _DANGLING_HANDLE not in claims_json
+
+
+class ConversationalProvider(ScriptedProvider):
+    """Drives the research loop, then answers the synthesis call with JSON."""
+
+    def create_response(self, **kwargs: Any) -> ModelResponse:
+        # The synthesis call passes tools=None (the loop always passes a tool list).
+        if kwargs.get("tools") is None:
+            payload = {
+                "direct_answer": (
+                    "No single session can be predicted; the weight of current "
+                    "evidence is the right frame, not a forecast of tomorrow."
+                ),
+                "analysis": "Trailing volatility is the only verified signal here.",
+                "analytical_inferences": [
+                    {
+                        "statement": "Elevated volatility can precede either direction.",
+                        "epistemic_class": "forecast",
+                        "supporting_claim_ids": [],
+                        "uncertainty": "directional only",
+                    }
+                ],
+                "conditional_scenarios": [],
+                "invalidation_conditions": [],
+                "monitoring_indicators": [{"label": "VIX", "rationale": "stress gauge"}],
+            }
+            usage = TokenUsage(input_tokens=120, output_tokens=90, total_tokens=210)
+            return ModelResponse(
+                response_id="resp_syn",
+                model=self.config.model,
+                status="completed",
+                output_text=json.dumps(payload),
+                usage=usage,
+                cost=estimate_cost(usage, self.config.pricing),
+            )
+        return super().create_response(**kwargs)
+
+
+def test_forward_looking_question_yields_conversational_response(tmp_path: Path) -> None:
+    config = build_config()
+    outcome = run_research_question(
+        "how can i expect the market to perform tomorrow?",
+        config=config,
+        state_dir=tmp_path,
+        provider=ConversationalProvider(config),  # type: ignore[arg-type]
+        alpaca=_fake_alpaca(),
+        as_of=date(2026, 11, 22),
+        clock=lambda: _NOW,
+    )
+    response = outcome.response
+    assert response is not None
+    # The answer addresses the forward-looking question, not a bare finding echo.
+    assert "predicted" in response.direct_answer.lower()
+    assert response.question_intent == "predictive"
+    # The synthesis model call was spent and counted (loop 4 + synthesis 1).
+    assert outcome.usage.model_calls == 5
+    assert outcome.usage.estimated_cost_usd <= config.max_cost_usd
+    # The structured response persisted alongside the verified answer.
+    assert (outcome.run_dir / "response.json").exists()
+    assert (outcome.run_dir / "response.txt").exists()
+    manifest = json.loads((outcome.run_dir / "manifest.json").read_text())
+    assert "response_hash" in manifest and "synthesis_version" in manifest
