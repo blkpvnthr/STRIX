@@ -71,6 +71,7 @@ nav:
       - Security: security.md
   - Usage:
       - Interactive mode: usage/interactive-mode.md
+      - Conversational research: usage/conversational-research.md
       - Command reference: usage/command-reference.md
       - Research runs: usage/research-runs.md
       - Replay: usage/replay.md

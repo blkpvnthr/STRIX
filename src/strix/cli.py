@@ -609,7 +609,7 @@ def _cmd_replay(
 def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO) -> int:
     from strix.agent.config import AgentConfig
     from strix.agent.orchestrator import run_research_question
-    from strix.agent.response_builder import render_answer
+    from strix.agent.response_builder import render_answer, render_response
     from strix.errors import AgentError
 
     try:
@@ -645,7 +645,10 @@ def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO
         err.write(f"\nError [{error_code(exc)}]: {exc}\n")
         return 1
 
-    out.write("\n" + render_answer(outcome.answer))
+    if outcome.response is not None:
+        out.write("\n" + render_response(outcome.response))
+    else:
+        out.write("\n" + render_answer(outcome.answer))
     usage = outcome.usage
     out.write(
         f"\nUsage: {usage.model_calls} model calls, {usage.tool_calls} tool calls, "

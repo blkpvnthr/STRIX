@@ -4,6 +4,63 @@ All notable changes to STRIX are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## [Unreleased] — Evidence-grounded conversational intelligence
+
+Transforms the agent from an evidence-retrieval interface into a conversational,
+evidence-grounded research agent that directly answers the user's question while
+preserving the deterministic verification, immutable evidence, SHA-256
+provenance, and replay architecture. Independent verification remains the sole
+authority for factual verdicts; GPT-6 Luna (`gpt-6-luna`) remains the exclusive
+model and the `$0.05`/run cap is unchanged (synthesis reserves one model call).
+Not merged to `main`.
+
+### Added
+- **Question classification** (`strix.agent.question`): deterministic intent
+  (factual, current-market, analytical, comparative, historical, corporate
+  fundamentals, macro, predictive, scenario, follow-up), entity/ticker, asset
+  class, time horizon, objectives, and evidence-requirement extraction — no model
+  call.
+- **Analytical synthesis** (`strix.agent.synthesis`): after verification, a
+  dedicated GPT-6 Luna call writes the direct answer, analysis, conditional
+  scenarios, and monitoring indicators from a compact brief. A numeric guard
+  strips any number not traceable to a verified claim; a probability guard strips
+  fabricated odds; both fall back to a deterministic answer. The directional
+  **market assessment** (bullish/bearish/neutral/mixed/insufficient + evidence
+  strength) is computed deterministically from verified claims, never asserted by
+  the model.
+- **Epistemic classification** (spec §6), kept separate from verification
+  verdicts: VERIFIED_FACT / ATTRIBUTED_REPORT / ANALYTICAL_INFERENCE /
+  CONDITIONAL_SCENARIO / FORECAST / UNRESOLVED. A verified input never makes an
+  inference or forecast itself "verified".
+- **Structured response contract** (`ResearchResponse`) wrapping the verified
+  `ResearchAnswer`: direct_answer, analysis, market_assessment, supporting_facts,
+  analytical_inferences, conditional_scenarios, contradictory_evidence,
+  unresolved_findings, monitoring_indicators, sources, limitations, diagnostics.
+- **Citation resolution** (`strix.agent.citations`): web-search handles are
+  aliased to preserved evidence and resolved before verification; unresolvable
+  handles are stripped and disclosed — the raw `turn…news…` identifier can no
+  longer leak into an answer.
+- **Financial sanity checks** (`strix.agent.sanity`): anomalous short-horizon
+  returns, price steps, volatility, inverted/future-dated windows, non-positive
+  prices, incomplete/weekend sessions — advisory flags that never change a
+  verdict.
+- **Conversational memory** (`strix.agent.memory`): bounded, atomic conversation
+  threads carrying discussed securities, last stance, and horizon as context
+  hints only (never as source evidence).
+- **Replay of the response** (spec §13): hash, citation, and classification
+  integrity of `response.json` are re-validated with no model call.
+- **Frontend**: response reorganized into the §11 section order (direct answer →
+  assessment → analysis → scenarios → interpretation → verified findings →
+  sources → unresolved → monitoring → limitations → diagnostics); thread
+  continuity for follow-ups.
+
+### Fixed
+- **Answer relevance** (RUN-20261123-001): forward-looking questions ("how will
+  the market perform tomorrow?") no longer answer with a trailing return; the
+  direct answer distinguishes current conditions from a prediction.
+- **Unresolved citations** (RUN-20261123-002): the raw web-search handle
+  `turn874423news19` is resolved or excluded, never shown as "unknown evidence".
+
 ## [0.2.0] — 2026-11-22
 
 First release of the **evidence-grounded OpenAI research agent** and a web
