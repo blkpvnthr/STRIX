@@ -6,31 +6,60 @@ export function ResearchCard({
   job,
   onInspect,
   onCancel,
+  onRetry,
 }: {
   job: ResearchJob;
   onInspect: (result: ResearchResult, evidenceId: string) => void;
   onCancel?: (id: string) => void;
+  onRetry?: (id: string) => void;
 }) {
   const running = job.status === "running" || job.status === "queued";
+  const retryable =
+    job.status === "failed" || job.status === "timed_out" || job.status === "partial";
   return (
     <article className="rounded-2xl border border-[var(--strix-border)] bg-[var(--strix-panel)]/80 p-5 shadow-lg backdrop-blur">
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-[15px] font-semibold leading-snug text-slate-100">{job.question}</h2>
-        {running && onCancel && (
-          <button
-            onClick={() => onCancel(job.research_id)}
-            className="shrink-0 rounded-md border border-[var(--strix-border)] px-2.5 py-1 text-xs text-slate-400 hover:bg-white/5 hover:text-slate-200"
-          >
-            Cancel
-          </button>
-        )}
+        <div className="flex shrink-0 gap-2">
+          {running && onCancel && (
+            <button
+              onClick={() => onCancel(job.research_id)}
+              className="rounded-md border border-[var(--strix-border)] px-2.5 py-1 text-xs text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            >
+              Cancel
+            </button>
+          )}
+          {retryable && onRetry && (
+            <button
+              onClick={() => onRetry(job.research_id)}
+              className="rounded-md border border-sky-500/40 px-2.5 py-1 text-xs text-sky-300 hover:bg-sky-500/10"
+            >
+              Retry
+            </button>
+          )}
+        </div>
       </div>
 
       {running && <Progress events={job.events} />}
 
-      {job.status === "failed" && (
+      {(job.status === "failed" || job.status === "timed_out") && (
         <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-sm text-rose-300">
-          {job.error ?? "Research failed."}
+          {job.status === "timed_out"
+            ? "Research exceeded its execution deadline."
+            : (job.error ?? "Research failed.")}
+        </p>
+      )}
+
+      {job.status === "cancelled" && (
+        <p className="mt-3 rounded-lg border border-[var(--strix-border)] bg-black/20 px-3 py-2 text-sm text-slate-400">
+          Research was cancelled.
+        </p>
+      )}
+
+      {job.status === "partial" && (
+        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-300">
+          Partial result: the research budget was reached. Only independently verified
+          findings are shown below — nothing unverified was promoted.
         </p>
       )}
 

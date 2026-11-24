@@ -1,0 +1,22 @@
+# Keep the serverless function bundle small and the build fast. The frontend
+# (web/) is required by the build step, so it is NOT ignored. Heavy data-
+# engineering dependencies are excluded at install time via requirements.txt,
+# not here.
+tests/
+docs/
+architecture/
+examples/
+fixtures/
+mkdocs.yml
+requirements-docs.txt
+engineering-notes.txt
+.github/
+.remember/
+research_runs/
+*.db
+*.sqlite3
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+**/__pycache__/

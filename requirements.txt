@@ -1,0 +1,12 @@
+# Lightweight dependency manifest for the Vercel Python Function (api/index.py).
+# Deliberately excludes the heavy lakehouse/warehouse stack (pyarrow, duckdb,
+# snowflake) and dbt/Airflow — those run in separate hosted infrastructure, not
+# inside a request-bound serverless function. See docs/deployment/vercel.md.
+pydantic>=2.5
+openai>=1.66
+fastapi>=0.110
+httpx>=0.27
+# Durable job store (Supabase Postgres via the Supavisor pooler).
+psycopg[binary]>=3.1
+# Supabase Auth JWT verification (asymmetric JWKS + legacy HS256).
+pyjwt[crypto]>=2.8

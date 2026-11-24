@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  TERMINAL,
   cancelResearch,
   getHistory,
   getMeta,
   getRun,
   pollResearch,
+  retryResearch,
   submitResearch,
 } from "./api";
+import { authEnabled, getSession, onAuthChange, signOut } from "./auth";
+import { Login } from "./Login";
 import { EvidenceInspector } from "./EvidenceInspector";
 import { ResearchCard } from "./ResearchCard";
 import type { Evidence, HistoryItem, Meta, ResearchJob, ResearchResult } from "./types";
@@ -19,7 +23,38 @@ const EXAMPLES = [
   "How has Apple's quarterly revenue changed year over year?",
 ];
 
+// Authentication gate: when Supabase auth is configured, require a session
+// before the research UI loads. When it isn't (offline dev), render directly.
 export function App() {
+  const [ready, setReady] = useState(!authEnabled);
+  const [authed, setAuthed] = useState(!authEnabled);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authEnabled) return;
+    getSession().then((s) => {
+      setAuthed(Boolean(s));
+      setEmail(s?.user?.email ?? null);
+      setReady(true);
+    });
+    return onAuthChange((s) => {
+      setAuthed(Boolean(s));
+      setEmail(s?.user?.email ?? null);
+    });
+  }, []);
+
+  if (!ready) return <div className="flex h-full items-center justify-center text-slate-500">…</div>;
+  if (!authed) return <Login />;
+  return <ResearchApp userEmail={email} onSignOut={() => void signOut()} />;
+}
+
+function ResearchApp({
+  userEmail,
+  onSignOut,
+}: {
+  userEmail: string | null;
+  onSignOut: () => void;
+}) {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [jobs, setJobs] = useState<ResearchJob[]>([]);
@@ -60,7 +95,7 @@ export function App() {
       setBusy(true);
       setQuestion("");
       try {
-        const id = await submitResearch(text);
+        const { research_id: id } = await submitResearch(text);
         upsert({
           research_id: id,
           question: text,
@@ -72,7 +107,7 @@ export function App() {
         });
         pollResearch(id, (job) => {
           upsert(job);
-          if (["completed", "failed", "cancelled"].includes(job.status)) {
+          if (TERMINAL.includes(job.status)) {
             setBusy(false);
             refreshHistory();
           }
@@ -113,6 +148,25 @@ export function App() {
     [upsert],
   );
 
+  const retry = useCallback(
+    async (id: string) => {
+      try {
+        const job = await retryResearch(id);
+        setBusy(true);
+        pollResearch(job.research_id, (j) => {
+          upsert(j);
+          if (TERMINAL.includes(j.status)) {
+            setBusy(false);
+            refreshHistory();
+          }
+        });
+      } catch {
+        /* surfaced via job error on next poll */
+      }
+    },
+    [upsert, refreshHistory],
+  );
+
   const onInspect = useCallback((result: ResearchResult, evidenceId: string) => {
     const idx = result.answer.evidence.findIndex((e) => e.evidence_id === evidenceId);
     if (idx >= 0) setInspect({ ev: result.answer.evidence[idx], result, n: idx + 1 });
@@ -123,6 +177,8 @@ export function App() {
       <Sidebar
         history={history}
         meta={meta}
+        userEmail={userEmail}
+        onSignOut={onSignOut}
         onPick={openRun}
         onNew={() => setJobs([])}
       />
@@ -139,6 +195,7 @@ export function App() {
                 job={job}
                 onInspect={onInspect}
                 onCancel={(id) => void cancelResearch(id)}
+                onRetry={(id) => void retry(id)}
               />
             ))}
           </div>
@@ -171,11 +228,15 @@ export function App() {
 function Sidebar({
   history,
   meta,
+  userEmail,
+  onSignOut,
   onPick,
   onNew,
 }: {
   history: HistoryItem[];
   meta: Meta | null;
+  userEmail: string | null;
+  onSignOut: () => void;
   onPick: (runId: string) => void;
   onNew: () => void;
 }) {
@@ -207,21 +268,37 @@ function Sidebar({
         )}
         {history.map((h) => (
           <button
-            key={h.run_id}
-            onClick={() => onPick(h.run_id)}
-            className="mt-1 block w-full rounded-lg px-2.5 py-2 text-left hover:bg-white/[0.04]"
+            key={h.research_id}
+            onClick={() => h.run_id && onPick(h.run_id)}
+            disabled={!h.run_id}
+            className="mt-1 block w-full rounded-lg px-2.5 py-2 text-left hover:bg-white/[0.04] disabled:opacity-50"
           >
-            <div className="truncate text-[13px] text-slate-300">{h.question || h.run_id}</div>
+            <div className="truncate text-[13px] text-slate-300">
+              {h.question || h.research_id}
+            </div>
             <div className="mono mt-0.5 text-[10px] text-slate-600">
-              {h.run_id} · {h.verified_count} verified
+              {h.run_id ?? h.research_id} · {h.status}
             </div>
           </button>
         ))}
       </nav>
-      <div className="border-t border-[var(--strix-border)] px-5 py-3 text-[10px] text-slate-600">
-        {meta?.configured
-          ? `model ${meta.model} · v${meta.agent_version}`
-          : "agent not configured"}
+      <div className="border-t border-[var(--strix-border)] px-5 py-3">
+        <div className="text-[10px] text-slate-600">
+          {meta?.configured
+            ? `model ${meta.model} · v${meta.agent_version}`
+            : "agent not configured"}
+        </div>
+        {userEmail && (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="truncate text-[11px] text-slate-500">{userEmail}</span>
+            <button
+              onClick={onSignOut}
+              className="shrink-0 rounded-md border border-[var(--strix-border)] px-2 py-1 text-[10px] text-slate-400 hover:bg-white/[0.05]"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

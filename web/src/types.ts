@@ -81,29 +81,53 @@ export interface Usage {
   exhausted_reason: string | null;
 }
 
+export type JobStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "partial"
+  | "failed"
+  | "cancelled"
+  | "timed_out";
+
 export interface ResearchResult {
   run_id: string;
   answer: Answer;
   usage: Usage;
-  claims: Claim[];
+  claims?: Claim[];
+  evidence?: Evidence[];
+  manifest?: unknown;
+  artifact_ref?: string | null;
 }
 
 export interface ResearchJob {
   research_id: string;
   question: string;
-  status: "queued" | "running" | "completed" | "failed" | "cancelled";
+  status: JobStatus;
   events: string[];
   result: ResearchResult | null;
+  run_id?: string | null;
   error: string | null;
+  cost_usd?: string | null;
+  attempt?: number;
+  max_attempts?: number;
   created_at: string;
 }
 
+export interface SubmitResponse {
+  research_id: string;
+  status: JobStatus;
+  created: boolean;
+}
+
 export interface HistoryItem {
-  run_id: string;
+  research_id: string;
   question: string;
-  verified_count: number;
+  status: JobStatus;
+  run_id: string | null;
+  cost_usd: string | null;
   created_at: string;
-  model: string;
+  finished_at: string | null;
 }
 
 export interface Meta {
@@ -113,5 +137,6 @@ export interface Meta {
   max_cost_usd?: string;
   web_search_enabled?: boolean;
   agent_version?: string;
+  auth_required?: boolean;
   error?: string;
 }
