@@ -17,7 +17,7 @@ Branch: `research/formal-evidence-verification` (R1 baseline).
 | R2-A | Governed research lifecycle (§4) | **DONE/TESTED (offline)** | assurance/lifecycle.py; full lifecycle composed+signed+audited; test_r2_governed 3 tests | live-agent evidence-collection wiring (the `findings` seam) |
 | R2-D | Answer-first conversational intelligence | DONE (deterministic path, R1) | — | live-agent wiring |
 | R2-F | Experimental benchmark + H1–H12 | NOT_EVALUATED | harness design in experimental-protocol.md | live LLM budget/credentials for 120/1200-q runs |
-| R2-G | C++ / Metal native backends | NOT_STARTED | — | CMake toolchain; Metal needs macOS GPU |
+| R2-G | C++ / Metal native backends | **BLOCKED** | design in native-computing-architecture.md; CMake 4.3 + clang 21 present | pybind11 NOT installed (build dep); install needs restricted network; Metal needs GPU runtime. Supported alternative = PythonReferenceBackend (validated baseline, R1 §35) |
 | DE-1..9 | Financial data engineering platform | PARTIAL (Bronze/Silver/warehouse/dbt per prior memory) | existing lakehouse tests | Airflow orchestration; some connectors need keys |
 | R3-core | Financial ledger engine (offline) | **DONE/TESTED** | finance/{transactions,ledger,imports,transfers,anomaly}; decimal-safe double-entry, CSV import, transfer/repayment matching (no double-count invariant), IQR/duplicate anomaly; 82 tests; one canonical txn model | — |
 | R3-app | Live app: connectors, dashboard UI, monthly automation, portfolio, assistant | NOT_STARTED/BLOCKED | ledger core is the data+logic foundation | Plaid/Teller/SnapTrade credentials + REAL financial PII; React dashboard; deploy — all credential/infra-gated |
