@@ -18,11 +18,18 @@ from pathlib import Path
 from typing import Any
 
 from strix.agent.config import AgentConfig
+from strix.agent.memory import ThreadStore, turn_from_response
 from strix.agent.orchestrator import run_research_question
+from strix.agent.question import classify_question
 from strix.canonical import to_jsonable
 from strix.errors import AgentError, StrixError, error_code
 from strix.run_store import RunStore
-from strix.webapi.serializers import serialize_answer, serialize_claims, serialize_usage
+from strix.webapi.serializers import (
+    serialize_answer,
+    serialize_claims,
+    serialize_response,
+    serialize_usage,
+)
 
 
 @dataclass
@@ -30,6 +37,7 @@ class Job:
     id: str
     question: str
     as_of: str | None
+    thread_id: str | None = None
     status: str = "queued"  # queued | running | completed | failed | cancelled
     events: list[str] = field(default_factory=list)
     result: dict[str, Any] | None = None
@@ -41,6 +49,7 @@ class Job:
         return {
             "research_id": self.id,
             "question": self.question,
+            "thread_id": self.thread_id,
             "status": self.status,
             "events": list(self.events),
             "result": self.result,
@@ -67,11 +76,14 @@ class ResearchService:
 
     # -- jobs --------------------------------------------------------------
 
-    def submit(self, question: str, as_of: str | None = None) -> Job:
+    def submit(
+        self, question: str, as_of: str | None = None, thread_id: str | None = None
+    ) -> Job:
         job = Job(
             id="RQ-" + uuid.uuid4().hex[:16],
             question=question,
             as_of=as_of,
+            thread_id=thread_id or ("TH-" + uuid.uuid4().hex[:16]),
             created_at=datetime.now(UTC).isoformat(),
         )
         with self._lock:
@@ -114,6 +126,14 @@ class ResearchService:
                 job.error = "invalid as_of date (expected ISO YYYY-MM-DD)"
                 return
 
+        threads = ThreadStore(self._state_dir)
+        prior_context = None
+        if job.thread_id:
+            try:
+                prior_context = threads.load(job.thread_id).context()
+            except ValueError:
+                prior_context = None
+
         try:
             outcome = self._runner(
                 job.question,
@@ -122,6 +142,7 @@ class ResearchService:
                 as_of=parsed_as_of,
                 progress=lambda m: job.events.append(m),
                 cancel_check=lambda: job.cancelled,
+                prior_context=prior_context,
             )
         except AgentError as exc:
             job.status = "failed"
@@ -135,9 +156,26 @@ class ResearchService:
         job.result = {
             "run_id": outcome.run_id,
             "answer": serialize_answer(outcome.answer),
+            "response": serialize_response(outcome.response),
             "usage": serialize_usage(outcome.usage),
             "claims": serialize_claims(outcome.claims),
+            "thread_id": job.thread_id,
         }
+
+        # Record this turn BEFORE marking completed so a follow-up polling on
+        # completion always sees the prior context persisted.
+        if job.thread_id and outcome.response is not None and not job.cancelled:
+            try:
+                securities = classify_question(job.question, as_of=parsed_as_of).entities
+                threads.append(
+                    job.thread_id,
+                    turn_from_response(
+                        outcome.response, securities=securities, now=datetime.now(UTC)
+                    ),
+                )
+            except (ValueError, OSError):  # pragma: no cover - memory is best-effort
+                pass
+
         job.status = "cancelled" if job.cancelled else "completed"
 
     # -- history -----------------------------------------------------------
@@ -185,9 +223,15 @@ class ResearchService:
             usage = store.load_json(run_id, "usage.json")
         except StrixError:
             return None
+        response: Any = None
+        try:
+            response = to_jsonable(store.load_json(run_id, "response.json"))
+        except StrixError:
+            response = None
         return {
             "run_id": run_id,
             "answer": to_jsonable(answer),
+            "response": response,
             "usage": to_jsonable(usage),
             "created_at": manifest.get("created_at", ""),
         }

@@ -10,12 +10,16 @@ from __future__ import annotations
 from typing import Any
 
 from strix.agent.budget import BudgetSnapshot
-from strix.agent.models import AgentClaim, ResearchAnswer
+from strix.agent.models import AgentClaim, ResearchAnswer, ResearchResponse
 from strix.canonical import to_jsonable
 
 
 def serialize_answer(answer: ResearchAnswer) -> Any:
     return to_jsonable(answer.model_dump())
+
+
+def serialize_response(response: ResearchResponse | None) -> Any:
+    return to_jsonable(response.model_dump()) if response is not None else None
 
 
 def serialize_usage(usage: BudgetSnapshot) -> Any:

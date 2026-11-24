@@ -81,16 +81,106 @@ export interface Usage {
   exhausted_reason: string | null;
 }
 
+// --- Conversational response (spec §9) ------------------------------------
+
+export type EpistemicClass =
+  | "verified_fact"
+  | "attributed_report"
+  | "analytical_inference"
+  | "conditional_scenario"
+  | "forecast"
+  | "unresolved";
+
+export type MarketStance =
+  | "bullish"
+  | "bearish"
+  | "neutral"
+  | "mixed"
+  | "insufficient_evidence";
+
+export type EvidenceStrength = "strong" | "moderate" | "weak" | "insufficient";
+
+export interface DirectionalIndicator {
+  label: string;
+  detail: string;
+  claim_ids: string[];
+}
+
+export interface MarketAssessment {
+  stance: MarketStance;
+  horizon: string;
+  analysis_timestamp: string;
+  latest_session: string | null;
+  supporting_indicators: DirectionalIndicator[];
+  contradictory_indicators: DirectionalIndicator[];
+  missing_indicators: string[];
+  evidence_strength: EvidenceStrength;
+  conditional_scenarios: string[];
+  invalidation_conditions: string[];
+}
+
+export interface SupportingFact {
+  claim_id: string;
+  statement: string;
+  epistemic_class: EpistemicClass;
+  evidence_ids: string[];
+  computed_value: string | null;
+  method: string | null;
+}
+
+export interface AnalyticalInference {
+  inference_id: string;
+  epistemic_class: EpistemicClass;
+  statement: string;
+  supporting_claim_ids: string[];
+  supporting_evidence_ids: string[];
+  uncertainty: string | null;
+}
+
+export interface ConditionalScenario {
+  scenario_id: string;
+  condition: string;
+  outcome: string;
+  supporting_claim_ids: string[];
+}
+
+export interface MonitoringIndicator {
+  label: string;
+  rationale: string;
+}
+
+export interface ResearchResponse {
+  run_id: string;
+  question: string;
+  question_intent: string;
+  direct_answer: string;
+  analysis: string;
+  market_assessment: MarketAssessment | null;
+  supporting_facts: SupportingFact[];
+  analytical_inferences: AnalyticalInference[];
+  conditional_scenarios: ConditionalScenario[];
+  contradictory_evidence: SupportingFact[];
+  unresolved_findings: SupportingFact[];
+  monitoring_indicators: MonitoringIndicator[];
+  sources: Evidence[];
+  limitations: string[];
+  diagnostics: Record<string, string>;
+  verified_answer: Answer;
+}
+
 export interface ResearchResult {
   run_id: string;
   answer: Answer;
+  response: ResearchResponse | null;
   usage: Usage;
   claims: Claim[];
+  thread_id?: string | null;
 }
 
 export interface ResearchJob {
   research_id: string;
   question: string;
+  thread_id?: string | null;
   status: "queued" | "running" | "completed" | "failed" | "cancelled";
   events: string[];
   result: ResearchResult | null;
