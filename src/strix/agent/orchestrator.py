@@ -30,6 +30,7 @@ from strix.agent.citations import resolve_claim_citations
 from strix.agent.config import AgentConfig, merged_environment
 from strix.agent.connectors.market_data import AlpacaConnector
 from strix.agent.evidence_collector import EvidenceCollector
+from strix.agent.memory import ThreadContext
 from strix.agent.models import (
     AgentClaim,
     AgentVerificationStatus,
@@ -78,12 +79,14 @@ def run_research_question(
     progress: ProgressFn | None = None,
     cancel_check: Callable[[], bool] | None = None,
     sec_fetch: Any = None,
+    prior_context: ThreadContext | None = None,
 ) -> ResearchOutcome:
     """Research one question end-to-end and persist the run."""
     now_fn = clock or (lambda: datetime.now(UTC))
     now = now_fn()
     as_of = as_of or now.date()
     emit = progress or (lambda _m: None)
+    prior_context = prior_context or ThreadContext.empty()
 
     provider = provider or OpenAIProvider(config)
     alpaca = alpaca or AlpacaConnector.from_env(merged_environment())
@@ -99,7 +102,9 @@ def run_research_question(
         sec_fetch=sec_fetch,
     )
 
-    research_question = classify_question(question, as_of=as_of)
+    research_question = classify_question(
+        question, as_of=as_of, has_prior_context=prior_context.has_prior
+    )
 
     tools = list(registry.function_schemas())
     if config.web_search_enabled:
@@ -163,6 +168,7 @@ def run_research_question(
         provider=provider,
         budget=budget,
         config=config,
+        prior_context=prior_context.summary or None,
     )
     limitations.extend(draft.limitations)
 

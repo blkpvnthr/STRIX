@@ -97,11 +97,14 @@ def synthesize(
     provider: object,
     budget: BudgetTracker,
     config: AgentConfig,
+    prior_context: str | None = None,
 ) -> SynthesisDraft:
     """Produce the conversational draft for one research question."""
     assessment = _derive_market_assessment(question, verified, collector, now)
     allowed_numbers = _allowed_numbers(verified)
-    brief = _build_brief(question, verified, unresolved, assessment, sanity_flags)
+    brief = _build_brief(
+        question, verified, unresolved, assessment, sanity_flags, prior_context
+    )
 
     llm_result: dict[str, Any] | None = None
     diagnostics = {"synthesis_version": SYNTHESIS_VERSION, "model": config.model}
@@ -490,8 +493,12 @@ def _build_brief(
     unresolved: tuple[AgentClaim, ...],
     assessment: MarketAssessment | None,
     sanity_flags: tuple[SanityFlag, ...],
+    prior_context: str | None = None,
 ) -> str:
-    lines = [
+    lines: list[str] = []
+    if prior_context:
+        lines += [prior_context, ""]
+    lines += [
         f"QUESTION: {question.text}",
         f"INTENT: {question.intent.value}; forward_looking={question.is_forward_looking}; "
         f"horizon={question.horizon.value}",
