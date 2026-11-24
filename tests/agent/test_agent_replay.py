@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
 from tests.agent.agent_fixtures import build_config
-from tests.agent.test_orchestrator import _NOW, ScriptedProvider, _fake_alpaca
+from tests.agent.test_orchestrator import (
+    _NOW,
+    ConversationalProvider,
+    ScriptedProvider,
+    _fake_alpaca,
+)
 
 from strix.agent.replay import replay_agent_run
 from strix.errors import ReplayError
@@ -28,6 +34,20 @@ def _make_run(tmp_path: Path) -> str:
     return outcome.run_id
 
 
+def _make_conversational_run(tmp_path: Path) -> tuple[str, Path]:
+    config = build_config()
+    outcome = run_research_question(
+        "how can i expect the market to perform tomorrow?",
+        config=config,
+        state_dir=tmp_path,
+        provider=ConversationalProvider(config),  # type: ignore[arg-type]
+        alpaca=_fake_alpaca(),
+        as_of=date(2026, 11, 22),
+        clock=lambda: _NOW,
+    )
+    return outcome.run_id, outcome.run_dir
+
+
 def test_replay_reproduces_verdicts(tmp_path: Path) -> None:
     run_id = _make_run(tmp_path)
     outcome = replay_agent_run(run_id, tmp_path)
@@ -37,6 +57,44 @@ def test_replay_reproduces_verdicts(tmp_path: Path) -> None:
     assert claim.recomputed_status == "verified"
     assert claim.matches is True
     assert claim.recomputed_value == claim.stored_value
+
+
+def test_replay_validates_persisted_response(tmp_path: Path) -> None:
+    run_id, _ = _make_conversational_run(tmp_path)
+    outcome = replay_agent_run(run_id, tmp_path)
+    assert outcome.passed is True
+    assert outcome.response is not None
+    assert outcome.response.present is True
+    assert outcome.response.hash_matches is True
+    assert outcome.response.citation_integrity is True
+    assert outcome.response.classification_integrity is True
+    assert outcome.response.problems == ()
+
+
+def test_replay_detects_tampered_response_hash(tmp_path: Path) -> None:
+    run_id, run_dir = _make_conversational_run(tmp_path)
+    path = run_dir / "response.json"
+    data = json.loads(path.read_text())
+    data["direct_answer"] = data["direct_answer"] + " (tampered)"
+    path.write_text(json.dumps(data))
+    outcome = replay_agent_run(run_id, tmp_path)
+    assert outcome.response is not None
+    assert outcome.response.hash_matches is False
+    assert outcome.passed is False
+
+
+def test_replay_detects_misclassified_response(tmp_path: Path) -> None:
+    run_id, run_dir = _make_conversational_run(tmp_path)
+    path = run_dir / "response.json"
+    data = json.loads(path.read_text())
+    # Promote a verified supporting fact to a forecast class — must be rejected.
+    assert data["supporting_facts"], "expected at least one supporting fact"
+    data["supporting_facts"][0]["epistemic_class"] = "forecast"
+    path.write_text(json.dumps(data))
+    outcome = replay_agent_run(run_id, tmp_path)
+    assert outcome.response is not None
+    assert outcome.response.classification_integrity is False
+    assert outcome.passed is False
 
 
 def test_replay_tolerates_trailing_zero_difference(tmp_path: Path) -> None:

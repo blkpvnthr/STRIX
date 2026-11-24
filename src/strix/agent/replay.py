@@ -16,10 +16,26 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from strix.agent.evidence_collector import EvidenceCollector
-from strix.agent.models import AgentClaim, AgentEvidence, ObservationSeries
+from strix.agent.models import (
+    AgentClaim,
+    AgentEvidence,
+    AgentVerificationStatus,
+    EpistemicClass,
+    ObservationSeries,
+    ResearchResponse,
+)
 from strix.agent.verifier import verify_claims
+from strix.canonical import canonical_hash
 from strix.errors import ReplayError
 from strix.run_store import RunStore
+
+#: Epistemic classes permitted in each response bucket (classification integrity).
+_SUPPORTING_CLASSES = frozenset(
+    {EpistemicClass.VERIFIED_FACT, EpistemicClass.ATTRIBUTED_REPORT}
+)
+_INFERENCE_CLASSES = frozenset(
+    {EpistemicClass.ANALYTICAL_INFERENCE, EpistemicClass.FORECAST}
+)
 
 
 @dataclass(frozen=True)
@@ -33,10 +49,28 @@ class ClaimReplay:
 
 
 @dataclass(frozen=True)
+class ResponseReplay:
+    """Validation of the persisted conversational response (spec §13)."""
+
+    present: bool
+    hash_matches: bool
+    citation_integrity: bool
+    classification_integrity: bool
+    problems: tuple[str, ...]
+
+    @property
+    def ok(self) -> bool:
+        return (not self.present) or (
+            self.hash_matches and self.citation_integrity and self.classification_integrity
+        )
+
+
+@dataclass(frozen=True)
 class AgentReplayOutcome:
     run_id: str
     passed: bool
     claims: tuple[ClaimReplay, ...]
+    response: ResponseReplay | None = None
 
 
 def replay_agent_run(run_id: str, state_dir: Path) -> AgentReplayOutcome:
@@ -81,10 +115,107 @@ def replay_agent_run(run_id: str, state_dir: Path) -> AgentReplayOutcome:
                 matches=(stored_status == new_status and values_match),
             )
         )
+    response_replay = _replay_response(
+        run_id, store, manifest, collector, recomputed
+    )
+
+    claims_pass = all(r.matches for r in results)
     return AgentReplayOutcome(
         run_id=run_id,
-        passed=all(r.matches for r in results),
+        passed=claims_pass and response_replay.ok,
         claims=tuple(results),
+        response=response_replay,
+    )
+
+
+def _replay_response(
+    run_id: str,
+    store: RunStore,
+    manifest: dict[str, object],
+    collector: EvidenceCollector,
+    recomputed: tuple[AgentClaim, ...],
+) -> ResponseReplay:
+    """Validate the persisted response's integrity against the re-verified claims."""
+    try:
+        data = store.load_json(run_id, "response.json")
+    except Exception:
+        return ResponseReplay(
+            present=False,
+            hash_matches=True,
+            citation_integrity=True,
+            classification_integrity=True,
+            problems=(),
+        )
+
+    problems: list[str] = []
+    try:
+        response = ResearchResponse(**data)
+    except (TypeError, ValueError) as exc:
+        raise ReplayError(f"run {run_id} has a malformed response.json: {exc}") from exc
+
+    # 1. Hash integrity — reconstruct the model and re-hash as persistence did.
+    stored_hash = manifest.get("response_hash")
+    recomputed_hash = canonical_hash(response.model_dump())
+    hash_matches = stored_hash == recomputed_hash
+    if not hash_matches:
+        problems.append("response_hash does not match the persisted response")
+
+    # 2. Citation integrity — every referenced evidence id resolves; supporting
+    #    facts map to a re-verified VERIFIED claim with the same recomputed value.
+    verified_now = {
+        c.claim_id: c
+        for c in recomputed
+        if c.verification.status is AgentVerificationStatus.VERIFIED
+    }
+    citation_ok = True
+    for ev in response.sources:
+        if collector.evidence(ev.evidence_id) is None:
+            citation_ok = False
+            problems.append(f"source {ev.evidence_id} does not resolve to preserved evidence")
+    for fact in response.supporting_facts:
+        for eid in fact.evidence_ids:
+            if collector.evidence(eid) is None:
+                citation_ok = False
+                problems.append(f"supporting fact {fact.claim_id} cites unresolved {eid}")
+        claim = verified_now.get(fact.claim_id)
+        if claim is None:
+            citation_ok = False
+            problems.append(
+                f"supporting fact {fact.claim_id} is not a re-verified VERIFIED claim"
+            )
+        elif fact.computed_value is not None and (
+            fact.computed_value != claim.verification.computed_value
+        ):
+            citation_ok = False
+            problems.append(
+                f"supporting fact {fact.claim_id} value diverges from recomputation"
+            )
+
+    # 3. Classification integrity — epistemic buckets never collapse into verdicts.
+    class_ok = True
+    for fact in response.supporting_facts:
+        if fact.epistemic_class not in _SUPPORTING_CLASSES:
+            class_ok = False
+            problems.append(f"supporting fact {fact.claim_id} has non-factual class")
+    for inf in response.analytical_inferences:
+        if inf.epistemic_class not in _INFERENCE_CLASSES:
+            class_ok = False
+            problems.append(f"inference {inf.inference_id} is not an inference/forecast class")
+        for cid in inf.supporting_claim_ids:
+            if cid not in verified_now:
+                class_ok = False
+                problems.append(f"inference {inf.inference_id} cites unknown claim {cid}")
+    for fact in response.unresolved_findings:
+        if fact.epistemic_class is not EpistemicClass.UNRESOLVED:
+            class_ok = False
+            problems.append(f"unresolved finding {fact.claim_id} is misclassified")
+
+    return ResponseReplay(
+        present=True,
+        hash_matches=hash_matches,
+        citation_integrity=citation_ok,
+        classification_integrity=class_ok,
+        problems=tuple(problems),
     )
 
 
