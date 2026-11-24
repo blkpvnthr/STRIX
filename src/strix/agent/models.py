@@ -239,3 +239,167 @@ class ResearchAnswer(StrixModel):
     @property
     def observed_dates(self) -> tuple[date, ...]:  # pragma: no cover - convenience
         return ()
+
+
+# --------------------------------------------------------------------------
+# Epistemic classification (spec §6) — kept SEPARATE from verification verdicts.
+#
+# A ``ClaimVerification.status`` (VERIFIED/CONTRADICTED/...) is what the
+# deterministic verifier decides about a *factual* claim. An ``EpistemicClass``
+# is what the synthesis layer records about a *statement in the response*. An
+# independently verified input never makes an analytical inference or forecast
+# itself VERIFIED — these two vocabularies never collapse into one.
+# --------------------------------------------------------------------------
+
+
+class EpistemicClass(StrEnum):
+    VERIFIED_FACT = "verified_fact"
+    ATTRIBUTED_REPORT = "attributed_report"
+    ANALYTICAL_INFERENCE = "analytical_inference"
+    CONDITIONAL_SCENARIO = "conditional_scenario"
+    FORECAST = "forecast"
+    UNRESOLVED = "unresolved"
+
+
+class MarketStance(StrEnum):
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+    NEUTRAL = "neutral"
+    MIXED = "mixed"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+
+
+class EvidenceStrength(StrEnum):
+    STRONG = "strong"
+    MODERATE = "moderate"
+    WEAK = "weak"
+    INSUFFICIENT = "insufficient"
+
+
+# --------------------------------------------------------------------------
+# Structured conversational response (spec §9)
+# --------------------------------------------------------------------------
+
+
+class DirectionalIndicator(StrixModel):
+    """A single supporting or contradictory signal behind a market assessment.
+
+    It points back at the verified claims that establish it; the stance is a
+    deterministic reading of these indicators, not a model-asserted verdict.
+    """
+
+    label: str = Field(min_length=1)
+    detail: str
+    claim_ids: tuple[str, ...] = ()
+
+
+class MarketAssessment(StrixModel):
+    """A structured directional assessment (spec §7).
+
+    ``stance`` is distinct from predictive probability: it summarizes the
+    weight of *current* evidence, never a claim about tomorrow's realized
+    direction. ``evidence_strength`` grades how much that weight rests on.
+    """
+
+    stance: MarketStance
+    horizon: str
+    analysis_timestamp: AwareDatetime
+    #: Latest market session the assessment could observe (ISO date), if known.
+    latest_session: str | None = None
+    supporting_indicators: tuple[DirectionalIndicator, ...] = ()
+    contradictory_indicators: tuple[DirectionalIndicator, ...] = ()
+    missing_indicators: tuple[str, ...] = ()
+    evidence_strength: EvidenceStrength = EvidenceStrength.INSUFFICIENT
+    conditional_scenarios: tuple[str, ...] = ()
+    invalidation_conditions: tuple[str, ...] = ()
+
+
+class SupportingFact(StrixModel):
+    """A verified fact or accurately attributed report cited by the answer.
+
+    ``epistemic_class`` is only ever VERIFIED_FACT or ATTRIBUTED_REPORT here —
+    this bucket never carries inferences or forecasts.
+    """
+
+    claim_id: str
+    statement: str = Field(min_length=1)
+    epistemic_class: EpistemicClass
+    evidence_ids: tuple[str, ...]
+    computed_value: DecimalValue | None = None
+    method: str | None = None
+
+
+class AnalyticalInference(StrixModel):
+    """An interpretation grounded in identified evidence (never a VERIFIED fact).
+
+    Every inference must reference the supporting verified claim or evidence
+    ids it rests on; it is classified ANALYTICAL_INFERENCE or FORECAST and may
+    carry an explicit, non-numeric uncertainty note. Numerical probabilities are
+    forbidden unless produced by a documented, evaluated model.
+    """
+
+    inference_id: str
+    epistemic_class: EpistemicClass
+    statement: str = Field(min_length=1)
+    supporting_claim_ids: tuple[str, ...] = ()
+    supporting_evidence_ids: tuple[str, ...] = ()
+    uncertainty: str | None = None
+
+    @staticmethod
+    def make_id(statement: str, supporting_claim_ids: tuple[str, ...]) -> str:
+        return make_id(
+            "INF",
+            {"statement": statement, "supporting_claim_ids": list(supporting_claim_ids)},
+        )
+
+
+class ConditionalScenario(StrixModel):
+    """A possible outcome contingent on a stated condition (spec §6)."""
+
+    scenario_id: str
+    condition: str = Field(min_length=1)
+    outcome: str = Field(min_length=1)
+    supporting_claim_ids: tuple[str, ...] = ()
+
+    @staticmethod
+    def make_id(condition: str, outcome: str) -> str:
+        return make_id("SCN", {"condition": condition, "outcome": outcome})
+
+
+class MonitoringIndicator(StrixModel):
+    """A development to watch that would alter the assessment."""
+
+    label: str = Field(min_length=1)
+    rationale: str
+
+
+class ResearchResponse(StrixModel):
+    """The conversational, evidence-grounded response (spec §9).
+
+    It *wraps* the deterministically verified :class:`ResearchAnswer` (which
+    remains the authority for factual verdicts) and adds the conversational
+    answer, analysis, assessment, and epistemically-classified interpretation.
+    The synthesis layer populates the narrative fields; it can cite verified
+    claims but can never re-label an inference as an independently verified fact.
+    """
+
+    run_id: str
+    question: str
+    question_intent: str
+    #: The direct, natural-language answer to the user's actual question.
+    direct_answer: str = Field(min_length=1)
+    #: Supporting analytical explanation interpreting the verified evidence.
+    analysis: str
+    market_assessment: MarketAssessment | None = None
+    supporting_facts: tuple[SupportingFact, ...] = ()
+    analytical_inferences: tuple[AnalyticalInference, ...] = ()
+    conditional_scenarios: tuple[ConditionalScenario, ...] = ()
+    contradictory_evidence: tuple[SupportingFact, ...] = ()
+    unresolved_findings: tuple[SupportingFact, ...] = ()
+    monitoring_indicators: tuple[MonitoringIndicator, ...] = ()
+    sources: tuple[AgentEvidence, ...] = ()
+    limitations: tuple[str, ...] = ()
+    #: Replay/provenance metadata (model id, methodology versions) — JSON-safe.
+    diagnostics: dict[str, str] = Field(default_factory=dict)
+    #: The verified factual record this response is grounded in.
+    verified_answer: ResearchAnswer
