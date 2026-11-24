@@ -40,6 +40,7 @@ from strix.agent.persistence import persist_agent_run
 from strix.agent.prompts import market_research_instructions
 from strix.agent.response_builder import build_answer
 from strix.agent.response_validator import validate_answer
+from strix.agent.sanity import check_claims
 from strix.agent.tool_registry import ToolContext, ToolRegistry
 from strix.agent.verifier import verify_claims
 from strix.errors import BudgetExceededError
@@ -130,6 +131,11 @@ def run_research_question(
     unresolved = tuple(
         c for c in verified_all if c.verification.status is not AgentVerificationStatus.VERIFIED
     )
+
+    emit("Running data-quality sanity checks")
+    sanity_flags = check_claims(verified, collector, as_of=as_of)
+    for flag in sanity_flags:
+        limitations.append(f"Data-quality check [{flag.code}]: {flag.message}")
 
     _collect_limitations(limitations, verified, unresolved, exhausted_reason, config)
 
