@@ -282,3 +282,29 @@ Any external communication derived from R1 must preserve these boundaries verbat
 | Adaptive acquisition optimizer (§15) | **NOT_IMPLEMENTED** |
 | Native CPU reference + evidence graph + GAP cores + answering | IMPLEMENTED/TESTED (engineering only) |
 | Scientific validation / novelty / significance / gov eligibility / funding | **None — not claimed** |
+
+## R2/R3 limitations (added after R2 assurance + R3 ledger core)
+
+- **Transfer matching false positives (R3, `finance/transfers.py`):** internal-transfer
+  matching uses only amount magnitude, opposite sign, a different owned account,
+  and the date window. With no corroborating signal (counterparty/memo), two
+  *unrelated* genuine transactions of equal magnitude within the window can be
+  wrongly matched as a transfer, hiding both from income/expense. A `TransferMatch`
+  is a **candidate for review**, not a confirmed transfer; production use must
+  corroborate. (The greedy-vs-maximum-matching bug is fixed; this is an inherent
+  heuristic limitation, not a bug.)
+- **Live account aggregation (R3-app):** Plaid/Teller/SnapTrade connectors, the
+  React dashboard, monthly-automation scheduling, portfolio intelligence, and the
+  conversational assistant are **NOT_IMPLEMENTED** — they require real credentials
+  and real financial PII. Only the offline ledger engine (double-entry, CSV import,
+  transfer matching, anomaly) is built and tested on synthetic data.
+- **Cryptographic freshness (R2-E):** certificate signing is Ed25519 (implemented);
+  but certificate *freshness* under content-addressing still anchors on an
+  identity-protected field, and full key lifecycle (HSM/KMS custody) is deployment
+  work, not implemented here.
+- **Governed lifecycle live wiring (R2-A):** the governed lifecycle composes all
+  six pillars + audit over *already-admitted findings*; wiring the live research
+  agent's evidence collection into that seam is **NOT_IMPLEMENTED**.
+- **C++/Metal backends, live-LLM benchmark (H1–H12), FSIP integration, hosted
+  deployment:** **NOT done** — toolchain/credentials/infra-gated; see
+  `milestone-tracker.md`.

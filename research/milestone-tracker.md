@@ -19,7 +19,8 @@ Branch: `research/formal-evidence-verification` (R1 baseline).
 | R2-F | Experimental benchmark + H1–H12 | NOT_EVALUATED | harness design in experimental-protocol.md | live LLM budget/credentials for 120/1200-q runs |
 | R2-G | C++ / Metal native backends | NOT_STARTED | — | CMake toolchain; Metal needs macOS GPU |
 | DE-1..9 | Financial data engineering platform | PARTIAL (Bronze/Silver/warehouse/dbt per prior memory) | existing lakehouse tests | Airflow orchestration; some connectors need keys |
-| R3 | Personal financial intelligence app | NOT_STARTED | — | Plaid/Teller/SnapTrade credentials; REAL financial PII (defer live) |
+| R3-core | Financial ledger engine (offline) | **DONE/TESTED** | finance/{transactions,ledger,imports,transfers,anomaly}; decimal-safe double-entry, CSV import, transfer/repayment matching (no double-count invariant), IQR/duplicate anomaly; 82 tests; one canonical txn model | — |
+| R3-app | Live app: connectors, dashboard UI, monthly automation, portfolio, assistant | NOT_STARTED/BLOCKED | ledger core is the data+logic foundation | Plaid/Teller/SnapTrade credentials + REAL financial PII; React dashboard; deploy — all credential/infra-gated |
 | R4 | Adaptive assurance | NOT_STARTED | — | depends R2/R3 |
 | R5 | FSIP cross-domain integration | NOT_STARTED | — | FSIP repo access; USAspending/SAM connectors |
 | R6 | Hosted deployment (Vercel/OCI/Supabase) | NOT_STARTED | — | interactive cloud auth; branch protection; secrets |
