@@ -31,7 +31,8 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | GAP-002 durable hash-chained ledger | `audit/*` | OFFLINE_TESTED |
 | GAP-003 reconciliation + anomaly screening | `reconciliation/*` | OFFLINE_TESTED |
 | Answer-first synthesis + validation | `answering/*` | OFFLINE_TESTED |
-| C++ / Metal native backends (§8/L) | design in `native-computing-architecture.md` | EXTERNALLY_BLOCKED (pybind11; evaluate C API next) |
+| Native C CPU backend via ctypes + parity certification (§8/L/§35) | `native/_c/*` + `native/backends/{native_build,native_cpu,parity}` | OFFLINE_TESTED (parity-certified, max \|Δ\|=4.8e-13 vs reference) |
+| C++ / Metal GPU native backends (§8/L) | design in `native-computing-architecture.md` | EXTERNALLY_BLOCKED (Metal GPU runtime; pybind11 not needed — ctypes used) |
 
 ## R2 operational assurance (§7/E) + governed lifecycle (§4)
 
@@ -95,7 +96,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 |---|---|---|
 | E/§7 | Gateway wired into live CLI/API/frontend + assurance inspector + financial assistant | Wave 4 |
 | N/§12 | Federal domain (USAspending/SAM/Treasury/GAO adapters + procurement analytics) | **OFFLINE_TESTED (Wave 5 done)** |
-| F/L/§8 | Native C backend via Python C API / cffi + parity | Wave 6 |
+| F/L/§8 | Native C backend via ctypes + parity | **OFFLINE_TESTED (Wave 6 done)** |
 | H/14/§10.3 | React dashboard pages | Wave 7 |
 | O/§17 | Deployment config (Docker, migrations, CI, health checks) | Wave 8 |
 | C/§6.C | Retrieval infra (lexical/BM25 offline, contracts, index reconciliation) | Wave 9 |
@@ -103,7 +104,9 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **1975 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
-- ruff zero; `mypy --strict` clean across native, evidence_graph, assurance, audit,
-  reconciliation, answering, finance, market, research_eval, federal.
-- Adversarial defects found & fixed to date: 17 (R1) + 3 (R2) + 3 (R3) = 23.
+- Full suite: **2005 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
+  evidence_graph, assurance, audit, reconciliation, answering, finance, market,
+  research_eval, federal.
+- Adversarial defects found & fixed to date: 17 (R1) + 3 (R2) + 3 (R3) + 4 (Wave 6
+  native backend) = 27.
