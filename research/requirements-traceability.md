@@ -80,6 +80,15 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Reproducibility contract (versions/params/precision/digest) | `retrieval/contracts` | OFFLINE_TESTED |
 | Hosted lexical engine (OpenSearch/Elasticsearch) behind the same contracts | — | NOT_STARTED (infra-gated; offline engine is the validated baseline) |
 
+## Phase K — Institutional instance isolation (§13)
+
+| Requirement | Module | State |
+|---|---|---|
+| Content-addressed institution identity (id↔slug invariant) | `institutional/models` | OFFLINE_TESTED |
+| Per-institution scoped context (isolated ledger root + keyring + namespaced ids) | `institutional/isolation` | OFFLINE_TESTED |
+| Durable uniqueness-enforcing registry (fail-closed reload, atomic+exclusive write) | `institutional/registry` | OFFLINE_TESTED |
+| Cross-institution access rejection (fail-closed) | `institutional/isolation` | OFFLINE_TESTED |
+
 ## Phase M — Experimental program (§15)
 
 | Requirement | Module | State |
@@ -110,13 +119,15 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | H/14/§10.3 | React dashboard pages | Wave 7 |
 | O/§17 | Deployment config (Docker, migrations, CI, health checks) | Wave 8 |
 | C/§6.C | Retrieval infra (lexical/BM25 offline, contracts, index reconciliation) | **OFFLINE_TESTED (Wave 9 done)** |
-| I/K/§11/§13 | Adaptive assurance + institutional instance isolation | Wave 10 |
+| K/§13 | Institutional instance isolation | **OFFLINE_TESTED (Wave 10a done)** |
+| I/§11 | Adaptive assurance (R4) | Wave 10b (pending) |
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2045 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2075 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance, audit, reconciliation, answering, finance, market,
-  research_eval, federal, retrieval.
+  research_eval, federal, retrieval, institutional.
 - Adversarial defects found & fixed to date: 17 (R1) + 3 (R2) + 3 (R3) + 4 (Wave 6
-  native backend) + 5 (Wave 9 retrieval, incl. 1 CRITICAL) = 32.
+  native backend) + 5 (Wave 9 retrieval, incl. 1 CRITICAL) + 4 (Wave 10a
+  institutional, incl. 1 CRITICAL cross-tenant takeover) = 36.
