@@ -70,6 +70,16 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | React dashboard pages (18) | `web/` | NOT_STARTED (Wave 7) |
 | Governed financial assistant tools | — | NOT_STARTED (Wave 4) |
 
+## Phase C — Retrieval infrastructure (§6.C)
+
+| Requirement | Module | State |
+|---|---|---|
+| Deterministic content-addressed inverted index | `retrieval/index` | OFFLINE_TESTED |
+| Exact-Decimal BM25 ranking (pinned precision, no float) | `retrieval/bm25` | OFFLINE_TESTED |
+| Index reconciliation (index↔corpus integrity, forged-digest + scalar-tamper detection) | `retrieval/reconcile` | OFFLINE_TESTED |
+| Reproducibility contract (versions/params/precision/digest) | `retrieval/contracts` | OFFLINE_TESTED |
+| Hosted lexical engine (OpenSearch/Elasticsearch) behind the same contracts | — | NOT_STARTED (infra-gated; offline engine is the validated baseline) |
+
 ## Phase M — Experimental program (§15)
 
 | Requirement | Module | State |
@@ -99,14 +109,14 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | F/L/§8 | Native C backend via ctypes + parity | **OFFLINE_TESTED (Wave 6 done)** |
 | H/14/§10.3 | React dashboard pages | Wave 7 |
 | O/§17 | Deployment config (Docker, migrations, CI, health checks) | Wave 8 |
-| C/§6.C | Retrieval infra (lexical/BM25 offline, contracts, index reconciliation) | Wave 9 |
+| C/§6.C | Retrieval infra (lexical/BM25 offline, contracts, index reconciliation) | **OFFLINE_TESTED (Wave 9 done)** |
 | I/K/§11/§13 | Adaptive assurance + institutional instance isolation | Wave 10 |
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2005 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2045 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance, audit, reconciliation, answering, finance, market,
-  research_eval, federal.
+  research_eval, federal, retrieval.
 - Adversarial defects found & fixed to date: 17 (R1) + 3 (R2) + 3 (R3) + 4 (Wave 6
-  native backend) = 27.
+  native backend) + 5 (Wave 9 retrieval, incl. 1 CRITICAL) = 32.
