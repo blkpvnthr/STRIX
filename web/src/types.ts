@@ -168,6 +168,19 @@ export interface ResearchResponse {
   verified_answer: Answer;
 }
 
+// Independent six-pillar assurance verdict attached by the governed backend
+// (strix.agent.governed.govern_agent_outcome) to every research result.
+export interface Assurance {
+  gateway_outcome: string;
+  answer_released: boolean;
+  reason_codes?: string[];
+  uncertainty_level?: string;
+  certificate_id?: string;
+  signed?: boolean;
+  audit_event_ids?: string[];
+  error?: string;
+}
+
 export interface ResearchResult {
   run_id: string;
   answer: Answer;
@@ -175,6 +188,7 @@ export interface ResearchResult {
   usage: Usage;
   claims: Claim[];
   thread_id?: string | null;
+  assurance?: Assurance | null;
 }
 
 export interface ResearchJob {
