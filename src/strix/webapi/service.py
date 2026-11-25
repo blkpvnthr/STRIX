@@ -160,6 +160,7 @@ class ResearchService:
             "usage": serialize_usage(outcome.usage),
             "claims": serialize_claims(outcome.claims),
             "thread_id": job.thread_id,
+            "assurance": self._govern(outcome),
         }
 
         # Record this turn BEFORE marking completed so a follow-up polling on
@@ -177,6 +178,34 @@ class ResearchService:
                 pass
 
         job.status = "cancelled" if job.cancelled else "completed"
+
+    def _govern(self, outcome: Any) -> dict[str, Any]:
+        """Apply the independent six-pillar assurance envelope to an outcome.
+
+        Fail-closed: if assurance cannot be evaluated the answer is NOT released.
+        The audit trail is hash-chained under ``<state>/audit``.
+        """
+        from strix.agent.governed import govern_agent_outcome
+
+        try:
+            # The ledger defaults INSIDE the run directory (collision-safe, and
+            # concurrent jobs never share one ledger).
+            governed = govern_agent_outcome(outcome, now=datetime.now(UTC))
+        except Exception:  # pragma: no cover - defensive; assurance must fail closed
+            return {
+                "gateway_outcome": "rejected",
+                "answer_released": False,
+                "error": "assurance evaluation failed",
+            }
+        return {
+            "gateway_outcome": governed.gateway_decision.outcome.value,
+            "answer_released": governed.answer_released,
+            "reason_codes": list(governed.gateway_decision.reason_codes),
+            "uncertainty_level": governed.uncertainty.level.value,
+            "certificate_id": governed.certificate.certificate_id,
+            "signed": governed.signature is not None,
+            "audit_event_ids": list(governed.audit_event_ids),
+        }
 
     # -- history -----------------------------------------------------------
 

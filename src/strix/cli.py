@@ -312,6 +312,16 @@ def build_parser() -> argparse.ArgumentParser:
         dest="state_dir",
         help="directory for research run artifacts (same default as the root command)",
     )
+    ask_parser.add_argument(
+        "--no-assurance",
+        action="store_true",
+        dest="no_assurance",
+        help=(
+            "DISABLE the governed assurance envelope (experimental baseline only). "
+            "By default the answer is authorized through the independent six-pillar "
+            "gateway and a hash-chained audit trail is persisted."
+        ),
+    )
 
     _build_ingest_parser(subparsers)
     _build_normalize_parser(subparsers)
@@ -728,6 +738,9 @@ def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO
         err.write(f"\nError [{error_code(exc)}]: {exc}\n")
         return 1
 
+    if not getattr(args, "no_assurance", False):
+        _render_ask_assurance(outcome, out)
+
     if outcome.response is not None:
         out.write("\n" + render_response(outcome.response))
     else:
@@ -739,6 +752,43 @@ def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO
         f"est. ${usage.estimated_cost_usd} ({usage.elapsed_seconds}s)\n"
     )
     return 0
+
+
+def _render_ask_assurance(outcome: object, out: TextIO) -> None:
+    """Apply + render the independent governed assurance envelope for `strix ask`.
+
+    Fail-closed on the verdict but never crashes the command: if assurance cannot
+    be evaluated the answer is reported as NOT independently authorized. The audit
+    ledger defaults inside the run directory.
+    """
+    from datetime import UTC, datetime
+
+    from strix.agent.governed import govern_agent_outcome
+
+    try:
+        governed = govern_agent_outcome(outcome, now=datetime.now(UTC))  # type: ignore[arg-type]
+    except Exception:
+        # Assurance must fail closed, never crash the CLI.
+        out.write(
+            "\nAssurance: UNAVAILABLE — answer NOT independently authorized "
+            "(assurance evaluation failed).\n"
+        )
+        return
+    decision = governed.gateway_decision
+    verdict = "RELEASED" if governed.answer_released else "WITHHELD"
+    out.write(
+        f"\nAssurance [{decision.outcome.value}] — answer {verdict}; "
+        f"uncertainty {governed.uncertainty.level.value}; "
+        f"{len(governed.audit_event_ids)} audit events; "
+        f"cert {governed.certificate.certificate_id}\n"
+    )
+    if decision.reason_codes:
+        out.write(f"  reasons: {', '.join(decision.reason_codes)}\n")
+    if not governed.answer_released:
+        out.write(
+            "  NOTE: the independent gateway did not authorize release; treat the "
+            "answer below as unverified/experimental.\n"
+        )
 
 
 def _agent_replay_text(outcome: object) -> str:
