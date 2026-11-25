@@ -34,6 +34,14 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Native C CPU backend via ctypes + parity certification (§8/L/§35) | `native/_c/*` + `native/backends/{native_build,native_cpu,parity}` | OFFLINE_TESTED (parity-certified, max \|Δ\|=4.8e-13 vs reference) |
 | C++ / Metal GPU native backends (§8/L) | design in `native-computing-architecture.md` | EXTERNALLY_BLOCKED (Metal GPU runtime; pybind11 not needed — ctypes used) |
 
+## R4 adaptive assurance (§11)
+
+| Requirement | Module | State |
+|---|---|---|
+| Deterministic, auditable, fail-closed policy adaptation (fast-tighten/slow-relax) | `assurance/adaptive` | OFFLINE_TESTED |
+| Hard safety floor (never tolerate HIGH/INSUFFICIENT; tier bounded; never bypass gateway) | `assurance/adaptive` | OFFLINE_TESTED |
+| Live wiring of the adaptive tier into the gateway acceptance bar | — | NOT_STARTED (Wave 4 integration) |
+
 ## R2 operational assurance (§7/E) + governed lifecycle (§4)
 
 | Requirement | State |
@@ -120,14 +128,15 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | O/§17 | Deployment config (Docker, migrations, CI, health checks) | Wave 8 |
 | C/§6.C | Retrieval infra (lexical/BM25 offline, contracts, index reconciliation) | **OFFLINE_TESTED (Wave 9 done)** |
 | K/§13 | Institutional instance isolation | **OFFLINE_TESTED (Wave 10a done)** |
-| I/§11 | Adaptive assurance (R4) | Wave 10b (pending) |
+| I/§11 | Adaptive assurance (R4) | **OFFLINE_TESTED (Wave 10b done)** |
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2075 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2089 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
-  evidence_graph, assurance, audit, reconciliation, answering, finance, market,
-  research_eval, federal, retrieval, institutional.
+  evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
+  market, research_eval, federal, retrieval, institutional.
 - Adversarial defects found & fixed to date: 17 (R1) + 3 (R2) + 3 (R3) + 4 (Wave 6
   native backend) + 5 (Wave 9 retrieval, incl. 1 CRITICAL) + 4 (Wave 10a
-  institutional, incl. 1 CRITICAL cross-tenant takeover) = 36.
+  institutional, incl. 1 CRITICAL cross-tenant takeover) = 36. (Wave 10b adaptive
+  assurance: reviewed, 0 confirmed defects — the 1 MAJOR raised was refuted.)
