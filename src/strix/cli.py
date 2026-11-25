@@ -380,6 +380,10 @@ def build_parser() -> argparse.ArgumentParser:
     compute_sub = compute_parser.add_subparsers(dest="compute_command", required=True)
     compute_sub.add_parser("backends", help="list computational backends and their status")
     compute_sub.add_parser("operations", help="list the supported native operations")
+    compute_sub.add_parser(
+        "parity",
+        help="certify the native-CPU backend against the Python reference (within tolerance)",
+    )
     return parser
 
 
@@ -452,23 +456,67 @@ def _default_input() -> str:
 
 
 def _cmd_compute(args: argparse.Namespace, out: TextIO, err: TextIO) -> int:
-    """Inspect the native quantitative computing backends (R1 §25)."""
+    """Inspect the native quantitative computing backends (R1 §25, §35)."""
+    from strix.native.backends.native_cpu import NativeCPUBackend
     from strix.native.backends.python_reference import PythonReferenceBackend
 
-    info = PythonReferenceBackend().info()
+    reference = PythonReferenceBackend()
+    info = reference.info()
+
     if args.compute_command == "operations":
         out.write(f"Native operations on backend '{info.kind.value}':\n")
         for operation in info.supported_operations:
             out.write(f"  {operation}\n")
         return 0
-    out.write("Computational backends:\n")
-    out.write(f"  kind:                {info.kind.value}\n")
-    out.write(f"  version:             {info.version}\n")
-    out.write(f"  numerical precision: {info.numerical_precision}\n")
-    out.write(f"  validation status:   {info.validation_status.value}\n")
-    out.write(f"  platform:            {info.platform}\n")
-    out.write(f"  operations:          {len(info.supported_operations)}\n")
+
+    if args.compute_command == "parity":
+        return _cmd_compute_parity(reference, out)
+
+    native_info = NativeCPUBackend().info()
+    out.write("Computational backends:\n\n")
+    for backend_info in (info, native_info):
+        out.write(f"  kind:                {backend_info.kind.value}\n")
+        out.write(f"  version:             {backend_info.version}\n")
+        out.write(f"  numerical precision: {backend_info.numerical_precision}\n")
+        out.write(f"  validation status:   {backend_info.validation_status.value}\n")
+        out.write(f"  platform:            {backend_info.platform}\n")
+        out.write(f"  operations:          {len(backend_info.supported_operations)}\n\n")
     return 0
+
+
+def _cmd_compute_parity(reference: object, out: TextIO) -> int:
+    """Build + certify the native-CPU backend against the reference (R1 §35)."""
+    from strix.native.backends.native_build import build_native_library
+    from strix.native.backends.native_cpu import NativeCPUBackend
+    from strix.native.backends.parity import DEFAULT_PARITY_CASES, check_parity
+
+    library_path = build_native_library()
+    if library_path is None:
+        out.write(
+            "Native-CPU parity: backend unavailable "
+            "(C toolchain or libstrix_native could not be built).\n"
+            "The Python reference backend remains the validated correctness baseline.\n"
+        )
+        return 0
+
+    native = NativeCPUBackend(library_path=library_path)
+    report = check_parity(native, reference, DEFAULT_PARITY_CASES)  # type: ignore[arg-type]
+    out.write(f"Native-CPU parity certification ({report.backend_id}\n")
+    out.write(f"  vs reference {report.reference_backend_id}):\n\n")
+    for outcome in report.outcomes:
+        verdict = "PASS" if outcome.passed else "FAIL"
+        out.write(
+            f"  [{verdict}] {outcome.operation:14s} "
+            f"|Δ|={outcome.absolute_difference:.3e}  "
+            f"bound={outcome.tolerance_bound:.3e}\n"
+        )
+    diffs = [o.absolute_difference for o in report.outcomes]
+    max_diff = max(diffs) if diffs else 0
+    out.write(
+        f"\n  overall: {'PASS' if report.all_passed else 'FAIL'} "
+        f"({len(report.outcomes)} cases, max |Δ|={max_diff:.3e})\n"
+    )
+    return 0 if report.all_passed else 1
 
 
 # --------------------------------------------------------------------------
