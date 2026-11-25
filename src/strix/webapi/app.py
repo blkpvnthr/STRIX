@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from strix.finance.service import FinanceService
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,10 +45,17 @@ class ResearchRequest(BaseModel):
 
 
 def create_app(
-    state_dir: Path | None = None, *, service: ResearchService | None = None
+    state_dir: Path | None = None,
+    *,
+    service: ResearchService | None = None,
+    finance: FinanceService | None = None,
 ) -> FastAPI:
+    from strix.finance.service import FinanceService
+    from strix.webapi.finance_api import register_finance_routes
+
     state = state_dir or resolve_state_dir(None)
     service = service or ResearchService(state)
+    finance = finance or FinanceService()
     app = FastAPI(title="STRIX Research API", version=AGENT_VERSION)
 
     app.add_middleware(
@@ -101,6 +111,7 @@ def create_app(
             raise HTTPException(status_code=404, detail="unknown run id")
         return JSONResponse(content=detail)
 
+    register_finance_routes(app, finance)
     _mount_static(app)
     return app
 
