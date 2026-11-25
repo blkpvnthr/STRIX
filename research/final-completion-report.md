@@ -1,20 +1,20 @@
 # STRIX — Continuous Implementation: Status Report (interrupted session, not final completion)
 
-**Branch:** `research/formal-evidence-verification` — **40 scoped commits** on top of
+**Branch:** `research/formal-evidence-verification` — **48 scoped commits** on top of
 baseline `849018d` (the uncommitted README/assets/`docs/FALCON` are intentionally
 excluded: pre-existing/unattributed content preserved, never committed).
 
-**Measured gate (reproduced):** Python `2164 passed, 2 skipped, 2 xfailed` — **0
+**Measured gate (reproduced):** Python `2210 passed, 2 skipped, 2 xfailed` — **0
 regressions** vs the `862` baseline; `ruff` zero; `mypy --strict` clean across all
 packages. Frontend: `web/` `vitest` 11/11 green, `tsc --noEmit` clean, `vite build`
-succeeds. **42 adversarial defects found & fixed** (3 CRITICAL), each with a
+succeeds. **45 adversarial defects found & fixed** (3 CRITICAL), each with a
 permanent regression test.
 
-**Latest increments (this session):** Finance HTTP API (§3, `finance/service` +
-`webapi/finance_api`, exact-Decimal money-as-strings, adversarially reviewed —
-overflow-DoS + op-contract fixed), finance frontend slice (`web/finance.ts` +
-`FinanceOverview.tsx`), and security operating modes (§10, `security/modes`,
-default-deny; `--no-assurance` refused outside open mode).
+**Latest increments:** Finance HTTP API (§3), finance frontend slice + budgets/
+categorization (§5/§9), security operating modes (§10), durable SQLite transactional
+outbox (§4/§6, adversarially reviewed — 3 MAJOR fixed), typed Parquet/Arrow datasets
++ governed DuckDB analytics (§7), Reciprocal Rank Fusion + evidence-aware rerank +
+deterministic-embedding vector/hybrid retrieval (§5/§7/§8).
 
 **Classification:** ENGINEERING_COMPLETE/OFFLINE_TESTED · PARTIAL · LIVE_BLOCKED ·
 NOT_EVALUATED. This is an **interrupted session**, not a completion claim: §5/7/8/9
