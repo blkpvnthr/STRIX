@@ -80,9 +80,19 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Portfolio: allocation/concentration/TWR/MWR/drift/rebalancing | `finance/portfolio` | OFFLINE_TESTED |
 | Monthly accounting workflow + statements + reconciliation + period close | `finance/accounting` | OFFLINE_TESTED |
 | Read-only provider adapters (Plaid/Teller/SnapTrade/Alpaca) | `finance/connectors` (fixture-backed) | OFFLINE_TESTED; LIVE_VALIDATED EXTERNALLY_BLOCKED (credentials) |
+| Finance HTTP API (accounts/transactions/net-worth/income-expense) | `finance/service` + `webapi/finance_api` | OFFLINE_TESTED (exact-Decimal, money-as-string, adversarially reviewed) |
 | Frontend test infra (Vitest+RTL+jsdom) + AssuranceVerdict component | `web/` | OFFLINE_TESTED (Wave 7a) |
-| React dashboard pages (18 finance + federal + DE) | `web/` | IN_PROGRESS — test infra + governed-assurance UI done; finance/federal/DE pages need their HTTP APIs first |
-| Governed financial assistant tools | — | NOT_STARTED (needs finance HTTP API §5) |
+| Finance frontend client + Overview panel (net worth + balances) | `web/finance.ts`, `web/FinanceOverview.tsx` | OFFLINE_TESTED |
+| React dashboard pages (remaining finance + federal + DE) | `web/` | IN_PROGRESS — API + first page + pattern established; remaining pages follow |
+| Governed financial assistant tools | — | NOT_STARTED |
+
+## Phase S — Security operating modes (§10)
+
+| Requirement | Module | State |
+|---|---|---|
+| Four operating modes + default-deny capability policy (fail-closed) | `security/modes` | OFFLINE_TESTED |
+| `--no-assurance` escape gated (refused outside open-research mode) | `cli` + `security/modes` | OFFLINE_TESTED |
+| RBAC/ABAC/document-level enforcement over the data infra | — | NOT_STARTED (needs the data infrastructure) |
 
 ## Phase C — Retrieval infrastructure (§6.C)
 
@@ -147,7 +157,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2132 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2164 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
