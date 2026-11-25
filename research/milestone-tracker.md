@@ -16,13 +16,14 @@ Branch: `research/formal-evidence-verification` (R1 baseline).
 | R2-gateway | Six-pillar authorization gateway | **DONE/TESTED** | assurance/gateway.py; 5 outcomes, fail-closed; whitelist fix; adversarially reviewed (1080-combo) | — |
 | R2-A | Governed research lifecycle (§4) | **DONE/TESTED (offline)** | assurance/lifecycle.py; full lifecycle composed+signed+audited; test_r2_governed 3 tests | live-agent evidence-collection wiring (the `findings` seam) |
 | R2-D | Answer-first conversational intelligence | DONE (deterministic path, R1) | — | live-agent wiring |
-| R2-F | Experimental benchmark + H1–H12 | NOT_EVALUATED | harness design in experimental-protocol.md | live LLM budget/credentials for 120/1200-q runs |
+| R2-F | Experimental benchmark + H1–H12 | **harness OFFLINE_TESTED; H1–H12 NOT_EVALUATED** | research_eval/{dataset,scoring,analysis,runner}: ground-truth schema, deterministic metric scoring, bootstrap/paired/BH analysis, run harness w/ cost budget + checkpoint; 58 tests | live LLM budget/credentials for 120/1200-q runs (live arms unrun by design) |
+| R5-core | Federal spending integrity (offline) | **DONE/TESTED** | federal/{models,connectors,analytics}: 6 distinct money kinds (never conflated), fixture read-only connectors, contractor resolution + procurement graph + obligation reconciliation + duplicate-reporting + anomaly screening (flags for REVIEW, never fraud); 64 tests | — |
 | R2-G | C++ / Metal native backends | **BLOCKED** | design in native-computing-architecture.md; CMake 4.3 + clang 21 present | pybind11 NOT installed (build dep); install needs restricted network; Metal needs GPU runtime. Supported alternative = PythonReferenceBackend (validated baseline, R1 §35) |
 | DE-1..9 | Financial data engineering platform | PARTIAL (Bronze/Silver/warehouse/dbt per prior memory) | existing lakehouse tests | Airflow orchestration; some connectors need keys |
 | R3-core | Financial ledger engine (offline) | **DONE/TESTED** | finance/{transactions,ledger,imports,transfers,anomaly}; decimal-safe double-entry, CSV import, transfer/repayment matching (no double-count invariant), IQR/duplicate anomaly; 82 tests; one canonical txn model | — |
 | R3-app | Live app: connectors, dashboard UI, monthly automation, portfolio, assistant | NOT_STARTED/BLOCKED | ledger core is the data+logic foundation | Plaid/Teller/SnapTrade credentials + REAL financial PII; React dashboard; deploy — all credential/infra-gated |
 | R4 | Adaptive assurance | NOT_STARTED | — | depends R2/R3 |
-| R5 | FSIP cross-domain integration | NOT_STARTED | — | FSIP repo access; USAspending/SAM connectors |
+| R5 | FSIP cross-domain integration | PARTIAL (offline federal domain done; see R5-core) | offline federal analytics proves the core is domain-independent | live USAspending/SAM/Treasury/GAO ingestion; FSIP repo access |
 | R6 | Hosted deployment (Vercel/OCI/Supabase) | NOT_STARTED | — | interactive cloud auth; branch protection; secrets |
 
 ## Protocol notes

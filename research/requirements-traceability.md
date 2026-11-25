@@ -73,18 +73,28 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 
 | Requirement | Module | State |
 |---|---|---|
-| Benchmark dataset + ground-truth schema | `research_eval/dataset` | IN_PROGRESS (Wave 3) |
-| Metric scoring (offline) | `research_eval/scoring` | IN_PROGRESS |
-| Statistical analysis (bootstrap/paired/BH) | `research_eval/analysis` | IN_PROGRESS |
-| Run harness + cost accounting + checkpoint/recovery | `research_eval/runner` | IN_PROGRESS |
+| Benchmark dataset + ground-truth schema | `research_eval/dataset` | OFFLINE_TESTED |
+| Metric scoring (offline) | `research_eval/scoring` | OFFLINE_TESTED |
+| Statistical analysis (bootstrap/paired/BH) | `research_eval/analysis` | OFFLINE_TESTED |
+| Run harness + cost accounting + checkpoint/recovery | `research_eval/runner` | OFFLINE_TESTED |
 | Live 120/1200-q benchmark; H1–H12 | — | NOT_EVALUATED (budget/credentials) |
+
+## Phase N — Federal spending integrity (§12)
+
+| Requirement | Module | State |
+|---|---|---|
+| Typed award models (6 distinct money kinds, never conflated) | `federal/models` | OFFLINE_TESTED |
+| Read-only connectors (USAspending/SAM/Treasury/GAO) | `federal/connectors` (fixture-backed) | OFFLINE_TESTED; LIVE_VALIDATED EXTERNALLY_BLOCKED (live ingestion) |
+| Procurement analytics (contractor resolution, graph, concentration) | `federal/analytics` | OFFLINE_TESTED |
+| Obligation reconciliation + duplicate-reporting + anomaly screening | `federal/analytics` | OFFLINE_TESTED |
+| Anomalies flagged for REVIEW, NEVER asserted as fraud | `federal/*` (non-assertion documented) | OFFLINE_TESTED |
 
 ## Phases to come (planned waves)
 
 | Phase | Requirement | State |
 |---|---|---|
 | E/§7 | Gateway wired into live CLI/API/frontend + assurance inspector + financial assistant | Wave 4 |
-| N/§12 | Federal domain (USAspending/SAM/Treasury/GAO adapters + procurement analytics) | Wave 5 |
+| N/§12 | Federal domain (USAspending/SAM/Treasury/GAO adapters + procurement analytics) | **OFFLINE_TESTED (Wave 5 done)** |
 | F/L/§8 | Native C backend via Python C API / cffi + parity | Wave 6 |
 | H/14/§10.3 | React dashboard pages | Wave 7 |
 | O/§17 | Deployment config (Docker, migrations, CI, health checks) | Wave 8 |
@@ -93,7 +103,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **1853 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **1975 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native, evidence_graph, assurance, audit,
-  reconciliation, answering, finance, market, research_eval.
+  reconciliation, answering, finance, market, research_eval, federal.
 - Adversarial defects found & fixed to date: 17 (R1) + 3 (R2) + 3 (R3) = 23.
