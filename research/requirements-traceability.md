@@ -80,8 +80,9 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Portfolio: allocation/concentration/TWR/MWR/drift/rebalancing | `finance/portfolio` | OFFLINE_TESTED |
 | Monthly accounting workflow + statements + reconciliation + period close | `finance/accounting` | OFFLINE_TESTED |
 | Read-only provider adapters (Plaid/Teller/SnapTrade/Alpaca) | `finance/connectors` (fixture-backed) | OFFLINE_TESTED; LIVE_VALIDATED EXTERNALLY_BLOCKED (credentials) |
-| React dashboard pages (18) | `web/` | NOT_STARTED (Wave 7) |
-| Governed financial assistant tools | — | NOT_STARTED (Wave 4) |
+| Frontend test infra (Vitest+RTL+jsdom) + AssuranceVerdict component | `web/` | OFFLINE_TESTED (Wave 7a) |
+| React dashboard pages (18 finance + federal + DE) | `web/` | IN_PROGRESS — test infra + governed-assurance UI done; finance/federal/DE pages need their HTTP APIs first |
+| Governed financial assistant tools | — | NOT_STARTED (needs finance HTTP API §5) |
 
 ## Phase C — Retrieval infrastructure (§6.C)
 
@@ -91,7 +92,16 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Exact-Decimal BM25 ranking (pinned precision, no float) | `retrieval/bm25` | OFFLINE_TESTED |
 | Index reconciliation (index↔corpus integrity, forged-digest + scalar-tamper detection) | `retrieval/reconcile` | OFFLINE_TESTED |
 | Reproducibility contract (versions/params/precision/digest) | `retrieval/contracts` | OFFLINE_TESTED |
-| Hosted lexical engine (OpenSearch/Elasticsearch) behind the same contracts | — | NOT_STARTED (infra-gated; offline engine is the validated baseline) |
+| Pluggable search backends (BM25 baseline + external adapter, BM25 fallback) | `retrieval/backends` | OFFLINE_TESTED |
+| Live OpenSearch/Elasticsearch cluster behind the external adapter | `retrieval/backends` (adapter ready) | LIVE_VALIDATED EXTERNALLY_BLOCKED (cluster infra) |
+
+## Phase B — DE orchestration (§7)
+
+| Requirement | Module | State |
+|---|---|---|
+| Scheduler-independent DAG definitions + executor (no Airflow) | `orchestration/{dag,executor}` | OFFLINE_TESTED |
+| Topological order, skip-on-failure, retries, checkpoint/resume | `orchestration/executor` | OFFLINE_TESTED |
+| Airflow DAG adapter (maps the same Dag onto operators) | — | NOT_STARTED (Airflow infra-gated; core is scheduler-independent) |
 
 ## Phase K — Institutional instance isolation (§13)
 
@@ -137,7 +147,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2110 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2132 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
