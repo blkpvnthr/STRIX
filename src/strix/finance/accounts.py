@@ -166,6 +166,10 @@ class AccountStore:
             )
         self._records[record.account_id] = record
 
+    def all_records(self) -> tuple[AccountRecord, ...]:
+        """Every registered record, ordered by ``account_id`` (deterministic)."""
+        return tuple(self._records[k] for k in sorted(self._records))
+
     def get(self, account_id: str) -> AccountRecord:
         """Return the registered record for *account_id*.
 
