@@ -15,10 +15,17 @@ from datetime import date
 from decimal import Decimal
 
 from strix.finance.accounts import AccountRecord, AccountStatus, AccountStore, make_account_record
+from strix.finance.budgets import BudgetVariance, CategoryBudget, compute_variances
+from strix.finance.categorize import DEFAULT_RULES, Category, categorize
 from strix.finance.ledger import AccountType, FinanceError
 from strix.finance.transactions import NormalizedTransaction, make_transaction
 from strix.models import DecimalValue, StrixModel
 from strix.native.arithmetic import checked_sum
+
+
+def _period_of(day: date) -> str:
+    """The ``YYYY-MM`` budget period a date falls in."""
+    return f"{day.year:04d}-{day.month:02d}"
 
 
 class AccountBalance(StrixModel):
@@ -66,6 +73,7 @@ class FinanceService:
         self._lock = threading.Lock()
         self._accounts = AccountStore()
         self._transactions: list[NormalizedTransaction] = []
+        self._budgets: dict[tuple[str, str], CategoryBudget] = {}
 
     # -- accounts ----------------------------------------------------------
 
@@ -186,6 +194,52 @@ class FinanceService:
             net_worth=assets_total - liabilities_total,
             accounts=tuple(balances),
         )
+
+    # -- categorization ----------------------------------------------------
+
+    def _transaction(self, txn_id: str) -> NormalizedTransaction:
+        for txn in self._transactions:
+            if txn.txn_id == txn_id:
+                return txn
+        raise FinanceError(f"unknown transaction {txn_id!r}")
+
+    def categorize_transaction(self, txn_id: str) -> Category:
+        """The deterministic spending category for a transaction (default rules)."""
+        with self._lock:
+            txn = self._transaction(txn_id)
+        return categorize(txn, DEFAULT_RULES)
+
+    # -- budgets -----------------------------------------------------------
+
+    def set_budget(
+        self, *, category: str, monthly_limit: Decimal, period: str
+    ) -> CategoryBudget:
+        """Set (or replace) a category's monthly budget for a ``YYYY-MM`` period."""
+        budget = CategoryBudget(category=category, monthly_limit=monthly_limit, period=period)
+        with self._lock:
+            self._budgets[(period, category)] = budget
+        return budget
+
+    def list_budgets(self, *, period: str | None = None) -> tuple[CategoryBudget, ...]:
+        with self._lock:
+            items = list(self._budgets.values())
+        if period is not None:
+            items = [b for b in items if b.period == period]
+        return tuple(sorted(items, key=lambda b: (b.period, b.category)))
+
+    def budget_variance(self, *, period: str) -> tuple[BudgetVariance, ...]:
+        """Score each category's budget for ``period`` against actual outflow spend."""
+        with self._lock:
+            budgets = [b for b in self._budgets.values() if b.period == period]
+            txns = [t for t in self._transactions if _period_of(t.posted_date) == period]
+        # Actual spend per category = exact sum of OUTFLOW magnitudes.
+        by_category: dict[str, list[Decimal]] = {}
+        for txn in txns:
+            if txn.amount < 0:
+                category = categorize(txn, DEFAULT_RULES).value
+                by_category.setdefault(category, []).append(-txn.amount)
+        actuals = {cat: checked_sum(amounts) for cat, amounts in by_category.items()}
+        return compute_variances(budgets, actuals)
 
     def income_expense_summary(
         self, *, start: date, end: date, owner: str | None = None

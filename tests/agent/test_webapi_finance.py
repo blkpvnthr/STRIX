@@ -18,13 +18,17 @@ from strix.finance.service import FinanceService
 from strix.webapi.app import create_app
 from strix.webapi.finance_api import (
     AccountCreate,
+    BudgetCreate,
     TransactionCreate,
+    budget_variance_op,
     create_account_op,
     create_transaction_op,
     get_account_op,
     income_expense_op,
+    list_budgets_op,
     list_transactions_op,
     net_worth_op,
+    set_budget_op,
 )
 
 
@@ -109,6 +113,38 @@ def test_income_expense_op_is_exact() -> None:
     assert s.inflow == "3000.00"
     assert s.outflow == "1200.75"
     assert s.net == "1799.25"
+
+
+def test_transaction_out_includes_category() -> None:
+    svc, acct_id = _svc_with_account()
+    out = create_transaction_op(svc, TransactionCreate(
+        account_id=acct_id, posted_date=date(2026, 1, 1), amount="-50.00",
+        description="WHOLE FOODS MARKET"))
+    assert out.category == "groceries"
+
+
+def test_budget_set_list_and_variance_ops() -> None:
+    svc, acct_id = _svc_with_account()
+    b = set_budget_op(
+        svc, BudgetCreate(category="groceries", monthly_limit="500", period="2026-01"))
+    assert b.monthly_limit == "500"
+    listed = list_budgets_op(svc, period="2026-01").budgets
+    assert [x.category for x in listed] == ["groceries"]
+    create_transaction_op(svc, TransactionCreate(
+        account_id=acct_id, posted_date=date(2026, 1, 9), amount="-120.00",
+        description="WHOLE FOODS"))
+    variances = budget_variance_op(svc, period="2026-01").variances
+    grocery = next(v for v in variances if v.category == "groceries")
+    assert grocery.actual == "120.00"
+    assert grocery.over_budget is False
+
+
+def test_budget_rejects_non_positive_limit() -> None:
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        set_budget_op(FinanceService(),
+                      BudgetCreate(category="x", monthly_limit="0", period="2026-01"))
+    assert exc.value.status_code == 400
 
 
 # --- adversarial-review regressions ---------------------------------------

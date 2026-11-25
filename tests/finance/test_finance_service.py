@@ -101,6 +101,41 @@ def test_income_expense_summary_is_exact() -> None:
     assert s.transaction_count == 3
 
 
+def test_budgets_set_list_and_variance() -> None:
+    svc = _svc()
+    acct = svc.list_accounts(owner="me")[0].account_id
+    svc.set_budget(category="groceries", monthly_limit=Decimal("500"), period="2026-01")
+    budgets = svc.list_budgets(period="2026-01")
+    assert len(budgets) == 1 and budgets[0].monthly_limit == Decimal("500")
+    # A grocery outflow in the period counts toward actual spend.
+    svc.add_transaction(account_id=acct, posted_date=date(2026, 1, 10),
+                        amount=Decimal("-120.00"), description="WHOLE FOODS MARKET")
+    variances = svc.budget_variance(period="2026-01")
+    grocery = next(v for v in variances if v.category == "groceries")
+    assert grocery.actual == Decimal("120.00")
+    assert grocery.variance == Decimal("380.00")
+    assert grocery.over_budget is False
+
+
+def test_budget_variance_flags_overspend() -> None:
+    svc = _svc()
+    acct = svc.list_accounts(owner="me")[0].account_id
+    svc.set_budget(category="groceries", monthly_limit=Decimal("100"), period="2026-02")
+    svc.add_transaction(account_id=acct, posted_date=date(2026, 2, 3),
+                        amount=Decimal("-150.00"), description="WHOLE FOODS")
+    (v,) = svc.budget_variance(period="2026-02")
+    assert v.over_budget is True
+    assert v.variance == Decimal("-50.00")
+
+
+def test_categorize_transaction_is_deterministic() -> None:
+    svc = _svc()
+    acct = svc.list_accounts(owner="me")[0].account_id
+    txn = svc.add_transaction(account_id=acct, posted_date=date(2026, 1, 1),
+                              amount=Decimal("-50.00"), description="WHOLE FOODS MARKET")
+    assert svc.categorize_transaction(txn.txn_id).value == "groceries"
+
+
 def test_add_transaction_rejects_float_amount() -> None:
     svc = _svc()
     acct = svc.list_accounts(owner="me")[0].account_id

@@ -14,8 +14,9 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
+from strix.finance.categorize import DEFAULT_RULES, categorize
 from strix.finance.ledger import AccountType, FinanceError
 from strix.finance.service import FinanceService
 from strix.native.arithmetic import NumericalContractError, as_decimal
@@ -68,6 +69,36 @@ class TransactionOut(BaseModel):
     amount: str
     description: str
     owned: bool
+    category: str
+
+
+class BudgetCreate(BaseModel):
+    category: str = Field(min_length=1, max_length=64)
+    #: Positive Decimal as a string.
+    monthly_limit: str
+    period: str = Field(pattern=r"^\d{4}-\d{2}$")
+
+
+class BudgetOut(BaseModel):
+    category: str
+    monthly_limit: str
+    period: str
+
+
+class BudgetListOut(BaseModel):
+    budgets: list[BudgetOut]
+
+
+class BudgetVarianceOut(BaseModel):
+    category: str
+    limit: str
+    actual: str
+    variance: str
+    over_budget: bool
+
+
+class BudgetVarianceListOut(BaseModel):
+    variances: list[BudgetVarianceOut]
 
 
 class TransactionPageOut(BaseModel):
@@ -159,6 +190,7 @@ def _txn_out(txn: object) -> TransactionOut:
         amount=str(txn.amount),  # type: ignore[attr-defined]
         description=txn.description,  # type: ignore[attr-defined]
         owned=txn.owned,  # type: ignore[attr-defined]
+        category=categorize(txn, DEFAULT_RULES).value,  # type: ignore[arg-type]
     )
 
 
@@ -223,6 +255,41 @@ def list_transactions_op(
     return TransactionPageOut(
         items=[_txn_out(t) for t in page.items],
         total=page.total, limit=page.limit, offset=page.offset,
+    )
+
+
+def set_budget_op(service: FinanceService, body: BudgetCreate) -> BudgetOut:
+    try:
+        budget = service.set_budget(
+            category=body.category,
+            monthly_limit=_money(body.monthly_limit, "monthly_limit"),  # type: ignore[arg-type]
+            period=body.period,
+        )
+    except (FinanceError, ValidationError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return BudgetOut(
+        category=budget.category, monthly_limit=str(budget.monthly_limit), period=budget.period
+    )
+
+
+def list_budgets_op(service: FinanceService, period: str | None) -> BudgetListOut:
+    return BudgetListOut(
+        budgets=[
+            BudgetOut(category=b.category, monthly_limit=str(b.monthly_limit), period=b.period)
+            for b in service.list_budgets(period=period)
+        ]
+    )
+
+
+def budget_variance_op(service: FinanceService, period: str) -> BudgetVarianceListOut:
+    return BudgetVarianceListOut(
+        variances=[
+            BudgetVarianceOut(
+                category=v.category, limit=str(v.limit), actual=str(v.actual),
+                variance=str(v.variance), over_budget=v.over_budget,
+            )
+            for v in service.budget_variance(period=period)
+        ]
     )
 
 
@@ -300,3 +367,15 @@ def register_finance_routes(app: FastAPI, service: FinanceService) -> None:
         owner: Annotated[str | None, Query()] = None,
     ) -> IncomeExpenseOut:
         return income_expense_op(service, start=start, end=end, owner=owner)
+
+    @app.post("/api/finance/budgets", response_model=BudgetOut)
+    def set_budget(body: BudgetCreate) -> BudgetOut:
+        return set_budget_op(service, body)
+
+    @app.get("/api/finance/budgets", response_model=BudgetListOut)
+    def list_budgets(period: Annotated[str | None, Query()] = None) -> BudgetListOut:
+        return list_budgets_op(service, period)
+
+    @app.get("/api/finance/budgets/variance", response_model=BudgetVarianceListOut)
+    def budget_variance(period: Annotated[str, Query()]) -> BudgetVarianceListOut:
+        return budget_variance_op(service, period)
