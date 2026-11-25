@@ -105,6 +105,16 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Pluggable search backends (BM25 baseline + external adapter, BM25 fallback) | `retrieval/backends` | OFFLINE_TESTED |
 | Live OpenSearch/Elasticsearch cluster behind the external adapter | `retrieval/backends` (adapter ready) | LIVE_VALIDATED EXTERNALLY_BLOCKED (cluster infra) |
 
+## Phase T — Analytical datastore + hybrid retrieval (§5/§7/§8)
+
+| Requirement | Module | State |
+|---|---|---|
+| Typed Decimal-safe Parquet datasets (content-addressed, atomic, integrity-validatable) | `datastore/parquet_dataset` (pyarrow) | OFFLINE_TESTED |
+| Governed DuckDB analytics (parameterized, column-whitelisted, no arbitrary SQL) | `datastore/duckdb_query` (duckdb) | OFFLINE_TESTED |
+| Reciprocal Rank Fusion + evidence-aware rerank (auth/integrity hard-gated) | `retrieval/fusion` | OFFLINE_TESTED |
+| Deterministic embeddings + vector index + hybrid (dense+lexical) search | `retrieval/vector` | OFFLINE_TESTED |
+| Real BGE-M3 embeddings / pgvector / OpenSearch cluster | — | NOT_STARTED (torch/model-download + service-gated; deterministic provider + adapter contracts in place) |
+
 ## Phase D — Durable transactional infrastructure (§4/§6)
 
 | Requirement | Module | State |
@@ -164,7 +174,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2184 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2210 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
