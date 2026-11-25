@@ -50,7 +50,10 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Governed lifecycle (request→…→audit) over admitted findings | OFFLINE_TESTED |
 | Assurance inspector (independent re-verify of chain + signatures; report render) | `assurance/inspector` | OFFLINE_TESTED |
 | Adaptive-assurance tier adaptation (deterministic, fail-closed) | `assurance/adaptive` | OFFLINE_TESTED |
-| Live wiring into `strix ask`/API/frontend/scheduled research (§7) | IN_PROGRESS — reusable governed core + inspector done; live-agent evidence seam + CLI/API wiring credential-gated |
+| Governed envelope over the research agent (gateway+audit+signing+monitor) | `agent/governed` | OFFLINE_TESTED |
+| `strix ask` governed by default (+ `--no-assurance` escape) | `cli` | OFFLINE_TESTED |
+| Web research API attaches independent assurance verdict to every job | `webapi/service` | OFFLINE_TESTED |
+| Live-model evidence collection into the governed path (§7) | — | LIVE_VALIDATED EXTERNALLY_BLOCKED (GPT-6 Luna credentials) |
 
 ## Phase G — Financial market intelligence (§9)
 
@@ -134,7 +137,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2095 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2110 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
