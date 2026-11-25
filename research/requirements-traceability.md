@@ -86,6 +86,22 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | React dashboard pages (remaining finance + federal + DE) | `web/` | IN_PROGRESS — API + first page + pattern established; remaining pages follow |
 | Governed financial assistant tools | — | NOT_STARTED |
 
+## Phase V — Vercel/cloud branch reconciliation (§1/§2/§5)
+
+Reconciled `feat/vercel-cloud-deployment` (single commit, 61 behind main) — selectively
+integrated the self-contained, offline-valuable, security-critical pieces; the rest is
+service-gated with a documented plan. NOT blindly merged; newer architecture preserved.
+
+| Requirement | Module | State |
+|---|---|---|
+| Supabase JWT auth integrated + HARDENED (trusted issuer, instance binding from signed app_metadata, fail-closed) | `auth/supabase_jwt`, `auth/dependencies` | OFFLINE_TESTED (adversarially reviewed) |
+| Auth WIRED into the API — no endpoint reachable anonymously (CRITICAL fix) | `webapi/app`, `webapi/finance_api` | OFFLINE_TESTED |
+| research_jobs RLS hardened (client cannot forge status/result/cost/lease; column-GRANT) | `supabase/migrations/0001` | IMPLEMENTED; integration-test gated (no PG server) |
+| GitHub Actions CI for the current app (ruff/mypy/pytest/vitest/tsc/build/smokes) | `.github/workflows/ci.yml` | IMPLEMENTED (gates verified green locally; GH-Actions-run gated) |
+| Durable cloud job store + cloud_app + rate/spend limits (governed-routing + outbox reconciliation) | `jobs/*`, `webapi/cloud_app` (on branch) | NOT_INTEGRATED — Supabase/PG service-gated; requires executor↔outbox reconciliation + governed-runtime routing |
+| DE-5 dbt transformations | (ancestor of main) | PRESENT (do not re-merge); dbt-run validation gated (dbt not installed) |
+| Vercel/OCI/Supabase live deploy | — | NOT_STARTED (unauthorized; interactive cloud auth) |
+
 ## Phase S — Security operating modes (§10)
 
 | Requirement | Module | State |
@@ -174,7 +190,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2210 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2233 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
