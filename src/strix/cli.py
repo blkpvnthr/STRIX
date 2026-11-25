@@ -700,10 +700,30 @@ def _cmd_replay(
 
 
 def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO) -> int:
+    import os
+
     from strix.agent.config import AgentConfig
     from strix.agent.orchestrator import run_research_question
     from strix.agent.response_builder import render_answer, render_response
     from strix.errors import AgentError
+    from strix.security.modes import (
+        SecurityError,
+        policy_for,
+        require_assurance_enabled,
+        resolve_operating_mode,
+    )
+
+    # The --no-assurance escape is only permitted in open-research mode; a governed
+    # institutional/disconnected deployment refuses it (fail-closed, §10).
+    if getattr(args, "no_assurance", False):
+        policy = policy_for(resolve_operating_mode(os.environ))
+        try:
+            require_assurance_enabled(policy, assurance_disabled=True)
+        except SecurityError as exc:
+            err.write(
+                f"Error: {exc}. Remove --no-assurance or change STRIX_OPERATING_MODE.\n"
+            )
+            return 1
 
     try:
         config = AgentConfig.load()
