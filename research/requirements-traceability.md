@@ -105,6 +105,13 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | Pluggable search backends (BM25 baseline + external adapter, BM25 fallback) | `retrieval/backends` | OFFLINE_TESTED |
 | Live OpenSearch/Elasticsearch cluster behind the external adapter | `retrieval/backends` (adapter ready) | LIVE_VALIDATED EXTERNALLY_BLOCKED (cluster infra) |
 
+## Phase D — Durable transactional infrastructure (§4/§6)
+
+| Requirement | Module | State |
+|---|---|---|
+| SQLite transactional outbox (idempotent publish, lease claim, retry/dead-letter, recovery) | `outbox/sqlite_outbox` | OFFLINE_TESTED (adversarially reviewed; 3 MAJOR fixed) |
+| PostgreSQL outbox backend (same contract) | — | NOT_STARTED (PostgreSQL service-gated) |
+
 ## Phase B — DE orchestration (§7)
 
 | Requirement | Module | State |
@@ -157,7 +164,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2164 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2184 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
