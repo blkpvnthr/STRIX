@@ -48,7 +48,9 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 |---|---|
 | Six pillars + gateway + signing + uncertainty + monitoring | OFFLINE_TESTED |
 | Governed lifecycle (request→…→audit) over admitted findings | OFFLINE_TESTED |
-| Live wiring into `strix ask`/API/frontend/scheduled research (§7) | IN_PROGRESS (Wave 4) |
+| Assurance inspector (independent re-verify of chain + signatures; report render) | `assurance/inspector` | OFFLINE_TESTED |
+| Adaptive-assurance tier adaptation (deterministic, fail-closed) | `assurance/adaptive` | OFFLINE_TESTED |
+| Live wiring into `strix ask`/API/frontend/scheduled research (§7) | IN_PROGRESS — reusable governed core + inspector done; live-agent evidence seam + CLI/API wiring credential-gated |
 
 ## Phase G — Financial market intelligence (§9)
 
@@ -132,7 +134,7 @@ LIVE_VALIDATED · EXPERIMENTALLY_EVALUATED · DEPLOYED · EXTERNALLY_BLOCKED.
 | B/DE | DE orchestration (DAGs + scheduler-independent entry points) | Wave 11 |
 
 ## Measured baseline (updated each wave)
-- Full suite: **2089 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
+- Full suite: **2095 passed, 2 skipped, 2 xfailed** (0 regressions vs `862` baseline).
 - ruff zero; `mypy --strict` clean across native (+ native/backends + _c kernels),
   evidence_graph, assurance (+ adaptive), audit, reconciliation, answering, finance,
   market, research_eval, federal, retrieval, institutional.
