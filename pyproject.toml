@@ -40,6 +40,13 @@ lakehouse = [
     "defusedxml>=0.7",
     "duckdb>=1.0",
 ]
+# Cloud/hosted deployment: Supabase Auth JWT verification (asymmetric JWKS +
+# legacy HS256) and the durable Supabase/Postgres job store. Kept optional per the
+# project's dependency-isolation rule; the local app runs without these.
+cloud = [
+    "pyjwt[crypto]>=2.8",
+    "psycopg[binary]>=3.1",
+]
 # Optional Snowflake cloud warehouse target (DE-4); not required for local dev.
 snowflake = [
     "snowflake-connector-python>=3.0",

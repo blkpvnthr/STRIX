@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from strix.finance.service import FinanceService
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +32,8 @@ from pydantic import BaseModel, Field
 
 from strix.agent import AGENT_VERSION
 from strix.agent.config import AgentConfig
+from strix.auth.dependencies import require_user
+from strix.auth.supabase_jwt import AuthConfigError, JWTVerifier
 from strix.errors import AgentError, error_code
 from strix.run_store import resolve_state_dir
 from strix.webapi.service import ResearchService
@@ -57,6 +59,17 @@ def create_app(
     service = service or ResearchService(state)
     finance = finance or FinanceService()
     app = FastAPI(title="STRIX Research API", version=AGENT_VERSION)
+
+    # Authentication: configure the verifier once. Without a verifier (and not in
+    # dev mode) every protected route fails CLOSED (503), never anonymous.
+    try:
+        app.state.verifier = JWTVerifier.from_env(os.environ)
+    except AuthConfigError:
+        app.state.verifier = None
+    app.state.auth_dev_mode = os.environ.get("STRIX_AUTH_MODE") == "dev"
+
+    #: Attached to every non-public route so no endpoint is reachable anonymously.
+    protected = [Depends(require_user)]
 
     app.add_middleware(
         CORSMiddleware,
@@ -84,34 +97,34 @@ def create_app(
             "agent_version": AGENT_VERSION,
         }
 
-    @app.post("/api/research")
+    @app.post("/api/research", dependencies=protected)
     def submit(request: ResearchRequest) -> dict[str, str | None]:
         job = service.submit(request.question, request.as_of, request.thread_id)
         return {"research_id": job.id, "thread_id": job.thread_id}
 
-    @app.get("/api/research/{research_id}")
+    @app.get("/api/research/{research_id}", dependencies=protected)
     def status(research_id: str) -> JSONResponse:
         job = service.get(research_id)
         if job is None:
             raise HTTPException(status_code=404, detail="unknown research id")
         return JSONResponse(content=job.public())
 
-    @app.post("/api/research/{research_id}/cancel")
+    @app.post("/api/research/{research_id}/cancel", dependencies=protected)
     def cancel(research_id: str) -> dict[str, bool]:
         return {"cancelled": service.cancel(research_id)}
 
-    @app.get("/api/history")
+    @app.get("/api/history", dependencies=protected)
     def history() -> JSONResponse:
         return JSONResponse(content={"runs": service.history()})
 
-    @app.get("/api/runs/{run_id}")
+    @app.get("/api/runs/{run_id}", dependencies=protected)
     def run_detail(run_id: str) -> JSONResponse:
         detail = service.run_detail(run_id)
         if detail is None:
             raise HTTPException(status_code=404, detail="unknown run id")
         return JSONResponse(content=detail)
 
-    register_finance_routes(app, finance)
+    register_finance_routes(app, finance, dependencies=protected)
     _mount_static(app)
     return app
 
