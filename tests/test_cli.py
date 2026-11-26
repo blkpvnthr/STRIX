@@ -229,3 +229,52 @@ class TestReasonerIsolation:
             Metric.OPERATING_MARGIN,
             Metric.OPERATING_MARGIN_CHANGE_PP,
         }
+
+
+def test_render_ask_assurance_withholds_on_rejected_conclusion() -> None:
+    """Step 8: the CLI enforcement decision is False (withhold) for a non-released run and
+    True (release) for an authorized one — so the body is withheld when the gateway rejects."""
+    import io as _io
+    from decimal import Decimal
+
+    from strix.agent.budget import BudgetSnapshot
+    from strix.agent.contracts import TokenUsage
+    from strix.agent.models import (
+        AgentClaim,
+        AgentClaimType,
+        AgentVerificationStatus,
+        ClaimVerification,
+        ConclusionVerification,
+        ResearchAnswer,
+    )
+    from strix.agent.orchestrator import ResearchOutcome
+    from strix.cli import _render_ask_assurance
+
+    def _outcome(cv: ConclusionVerification) -> ResearchOutcome:
+        claim = AgentClaim(
+            claim_id="CL-1", claim_type=AgentClaimType.OBSERVATION, statement="f",
+            evidence_ids=("E1",),
+            verification=ClaimVerification(status=AgentVerificationStatus.VERIFIED),
+        )
+        answer = ResearchAnswer(
+            run_id="RUN-X", question="q", data_as_of=None, summary="s",
+            verified_claims=(claim,), unresolved_claims=(), evidence=(),
+            limitations=(), disclaimer="d", conclusion_verification=cv,
+        )
+        usage = BudgetSnapshot(
+            model_calls=1, tool_calls=0, usage=TokenUsage(), estimated_cost_usd=Decimal("0"),
+            tool_cost_usd=Decimal("0"), pricing_version="v1", elapsed_seconds=Decimal("0"),
+            exhausted=False, exhausted_reason=None,
+        )
+        return ResearchOutcome(
+            answer=answer, run_id="RUN-X", run_dir=Path("/tmp/none"), usage=usage, claims=(claim,)
+        )
+
+    rejected = _render_ask_assurance(
+        _outcome(ConclusionVerification(outcome="rejected")), _io.StringIO()
+    )
+    admitted = _render_ask_assurance(
+        _outcome(ConclusionVerification(outcome="admitted")), _io.StringIO()
+    )
+    assert rejected is False
+    assert admitted is True

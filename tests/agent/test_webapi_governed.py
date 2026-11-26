@@ -85,7 +85,10 @@ def test_verified_run_is_authorized_and_released(tmp_path: Path) -> None:
     assert done.result["answer"]["summary"] == "S."
 
 
-def test_unverified_run_abstains_but_payload_preserved(tmp_path: Path) -> None:
+def test_unverified_run_abstains_and_answer_is_withheld(tmp_path: Path) -> None:
+    # Enforcing gateway (Step 8): an unverified run abstains and the synthesized answer body is
+    # WITHHELD from the result — the advisory bypass (answer served despite non-release) is
+    # closed. The gateway verdict + reasons are still returned for transparency.
     service = _service(tmp_path, verified=0)
     job = service.submit("q")
     done = _poll(service, job.id)
@@ -94,8 +97,10 @@ def test_unverified_run_abstains_but_payload_preserved(tmp_path: Path) -> None:
     assurance = done.result["assurance"]
     assert assurance["gateway_outcome"] == "abstain"
     assert assurance["answer_released"] is False
-    # The answer is still serialized (transparency), but not marked released.
-    assert done.result["answer"]["summary"] == "S."
+    # The answer body is withheld; the verdict remains visible.
+    assert done.result["answer"] is None
+    assert done.result["response"] is None
+    assert done.result["answer_withheld"] is True
 
 
 def test_audit_chain_is_persisted_and_verifiable(tmp_path: Path) -> None:

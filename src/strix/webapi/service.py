@@ -154,20 +154,28 @@ class ResearchService:
             job.error = "research failed unexpectedly"
             return
 
+        # Assurance is evaluated FIRST and ENFORCED: when the independent gateway does not
+        # authorize release, the synthesized answer body is withheld from the result (the
+        # gateway verdict + reasons are still returned). This closes the advisory-gateway
+        # bypass — a non-released answer is never served to the HTTP caller.
+        assurance = self._govern(outcome)
+        released = bool(assurance.get("answer_released", False))
         job.result = {
             "run_id": outcome.run_id,
-            "answer": serialize_answer(outcome.answer),
-            "response": serialize_response(outcome.response),
-            "documentation": serialize_documentation(outcome.response),
+            "answer": serialize_answer(outcome.answer) if released else None,
+            "response": serialize_response(outcome.response) if released else None,
+            "documentation": serialize_documentation(outcome.response) if released else None,
             "usage": serialize_usage(outcome.usage),
             "claims": serialize_claims(outcome.claims),
             "thread_id": job.thread_id,
-            "assurance": self._govern(outcome),
+            "assurance": assurance,
+            "answer_withheld": not released,
         }
 
         # Record this turn BEFORE marking completed so a follow-up polling on
-        # completion always sees the prior context persisted.
-        if job.thread_id and outcome.response is not None and not job.cancelled:
+        # completion always sees the prior context persisted. A withheld (non-released)
+        # answer is NOT recorded into thread memory, so it cannot leak into follow-ups.
+        if job.thread_id and outcome.response is not None and released and not job.cancelled:
             try:
                 securities = classify_question(job.question, as_of=parsed_as_of).entities
                 threads.append(

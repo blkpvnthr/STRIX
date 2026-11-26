@@ -25,16 +25,33 @@ from strix.webapi.service import ResearchService
 
 
 def _fake_outcome(question: str, run_dir: Path, *, cancelled: bool = False) -> ResearchOutcome:
+    from strix.agent.models import (
+        AgentClaim,
+        AgentClaimType,
+        AgentVerificationStatus,
+        ClaimVerification,
+        ConclusionVerification,
+    )
+
+    verified_claim = AgentClaim(
+        claim_id="CL-1",
+        claim_type=AgentClaimType.OBSERVATION,
+        statement="a verified finding",
+        evidence_ids=("E1",),
+        verification=ClaimVerification(status=AgentVerificationStatus.VERIFIED),
+    )
     answer = ResearchAnswer(
         run_id="RUN-20261122-001",
         question=question,
         data_as_of=None,
         summary="A verified summary.",
-        verified_claims=(),
+        verified_claims=(verified_claim,),
         unresolved_claims=(),
         evidence=(),
         limitations=("example limitation",),
         disclaimer="not advice",
+        # A genuinely released run: the conclusion-level verdict admits it.
+        conclusion_verification=ConclusionVerification(outcome="admitted"),
     )
     usage = BudgetSnapshot(
         model_calls=2,
