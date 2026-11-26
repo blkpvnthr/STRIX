@@ -524,6 +524,16 @@ def support(
         unit = _unit_of(node)
         subject = _subject_of(node)
         value = _value_of(node)
+        # DOCUMENTED LIMITATION (TBF-INFRA-1): when the cited node is a bare
+        # ComputationResult it attests no entity/metric (``subject``/``metric`` are None),
+        # so entity/metric relevance here rests on the untrusted claim's declared
+        # subject_id/assertion.metric. This base predicate proves the *value* (and
+        # derivation re-checks it) but not the entity/metric *labels* for computation-
+        # backed assertions. Independent entity/metric binding is enforced additively by
+        # the DTEC institutional-admissibility predicate (A_inst, R-N6 / Phase 4), which
+        # requires computation-backed material assertions to bind to entity-attesting
+        # provenance; see research/dtec/_confidential/trust-boundary-findings.md. The
+        # base behavior is preserved here to avoid weakening the existing core.
         supported = (
             unit is not None
             and unit == assertion.unit

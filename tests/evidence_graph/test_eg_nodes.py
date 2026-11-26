@@ -63,14 +63,20 @@ def test_relationship_kind_members() -> None:
 
 
 def test_predicate_name_members() -> None:
-    assert {m.value for m in PredicateName} == {
-        "integrity",
-        "type_temporal",
-        "provenance",
-        "derivation",
-        "support",
+    # The five implemented claim-level core predicates (A(c)=I∧T∧P_rov∧D_num∧S)...
+    core = {"integrity", "type_temporal", "provenance", "derivation", "support"}
+    # ...plus the unified-calculus extension predicates (master spec §1.1), each
+    # evaluated by its own module under the same four-valued admission algebra.
+    extensions = {
+        "independence",  # A_ind
+        "inferential",  # R
+        "contextual",  # K
+        "faithfulness",  # F
+        "institutional",  # A_inst
+        "budget",  # M_B
     }
-    assert len(PredicateName) == 5
+    assert {m.value for m in PredicateName} == core | extensions
+    assert len(PredicateName) == 11
 
 
 def test_predicate_status_members() -> None:

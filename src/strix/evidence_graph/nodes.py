@@ -86,13 +86,27 @@ class RelationshipKind(StrEnum):
 
 
 class PredicateName(StrEnum):
-    """The verification predicates a policy may deem mandatory (R1 §10.6)."""
+    """The verification predicates a policy may deem mandatory (R1 §10.6).
+
+    The first five are the implemented claim-level core ``A(c)=I∧T∧P_rov∧D_num∧S``.
+    The remainder are the conclusion-level / unified-calculus extension predicates
+    (master spec §1.1): each is produced by a dedicated module and composes under
+    the same four-valued admission algebra. Adding a member is additive and does
+    not affect existing content-addressed policy ids (no existing member changes).
+    """
 
     INTEGRITY = "integrity"
     TYPE_TEMPORAL = "type_temporal"
     PROVENANCE = "provenance"
     DERIVATION = "derivation"
     SUPPORT = "support"
+    # Unified-calculus extension predicates (evaluated by their own modules).
+    INDEPENDENCE = "independence"  # A_ind — dependency-aware independent-evidence sufficiency
+    INFERENTIAL = "inferential"  # R — inferential validity (compositional calculus)
+    CONTEXTUAL = "contextual"  # K — contextual applicability (compositional calculus)
+    FAITHFULNESS = "faithfulness"  # F — conclusion completeness & faithfulness
+    INSTITUTIONAL = "institutional"  # A_inst — institutional admissibility
+    BUDGET = "budget"  # M_B — mandatory verification completed within budget
 
 
 class PredicateStatus(StrEnum):
