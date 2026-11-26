@@ -15,6 +15,8 @@ R-N2 temporal selection      validity-only single-axis filter       accuracy ≥
 R-N4 calibration diagnostic  overconfident probability source       ECE ≤ 0.05
 R-N3 compositional support   individual-claim (RAG-like) composer   unsupported-claim
                                                                     reduction ≥ 50%
+R-N5 resource-bounded plan    FIFO / cheapest-first / utility-first  improved verified
+                             / pure yield-maximizer                 yield at equal budget
 ===========================  =====================================  ==================
 
 **Honesty contract.** Every number here is a deterministic offline measurement on
@@ -35,8 +37,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
+from itertools import combinations
 
 from strix.assurance.calibration import CalibrationSample, expected_calibration_error
+from strix.assurance.verification_planner import (
+    ResourceBudget,
+    VerificationOp,
+    plan_verification,
+)
 from strix.evidence_graph.calculus import (
     Conclusion,
     FormalEncoding,
@@ -67,27 +75,38 @@ __all__ = [
     "DTECBaselineReport",
     "DependencyEvalResult",
     "DependencyPair",
+    "PlannerEvalResult",
+    "PlanningInstance",
     "TemporalCase",
     "TemporalEvalResult",
     "artifact_id_match_predicts_dependent",
     "availability_only_admits_temporal",
+    "brute_force_optimum",
     "composite_match_predicts_dependent",
     "conclusion_benchmark",
     "confusion_metrics",
     "contradiction_aware_admits_conclusion",
+    "cost_ascending_select",
     "dependency_benchmark",
     "dtec_predicts_dependent",
+    "dtec_ratio_select",
     "evaluate_calibration",
     "evaluate_compositional_support",
     "evaluate_dependency_detection",
+    "evaluate_resource_planning",
     "evaluate_temporal_selection",
+    "fifo_select",
     "individual_claim_admits_conclusion",
     "null_floor_predicts_dependent",
+    "planning_benchmark",
     "run_dtec_baselines",
+    "selected_utility",
     "semantic_tuple_match_predicts_dependent",
     "temporal_benchmark",
+    "utility_descending_select",
     "validity_only_admits_temporal",
     "value_dedup_predicts_dependent",
+    "yield_maximizer_select",
 ]
 
 _T0 = datetime(2024, 1, 1, tzinfo=UTC)
@@ -798,6 +817,207 @@ def evaluate_compositional_support() -> CompositionalEvalResult:
 
 
 # --------------------------------------------------------------------------
+# R-N5 — resource-bounded verification: equal-budget yield vs naive strategies
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PlanningInstance:
+    """One verification-planning instance: candidate ops and a scalar budget."""
+
+    name: str
+    ops: tuple[VerificationOp, ...]
+    budget: ResourceBudget
+
+
+def _op(op_id: str, utility: str, cost: str, *, mandatory: bool = False) -> VerificationOp:
+    return VerificationOp(
+        op_id=op_id, utility=Decimal(utility), cost=Decimal(cost), mandatory=mandatory
+    )
+
+
+def planning_benchmark() -> tuple[PlanningInstance, ...]:
+    """Prereq-free synthetic instances where the strategies genuinely diverge."""
+    return (
+        # beats_fifo: a bad item listed first starves FIFO; ratio/cost/util recover.
+        PlanningInstance(
+            "beats_fifo",
+            (_op("a_bad", "1", "5"), _op("b_hi", "4", "2"), _op("c_hi", "4", "2")),
+            ResourceBudget(total=Decimal("5")),
+        ),
+        # beats_utility_first: a big high-utility low-ratio item starves utility-first.
+        PlanningInstance(
+            "beats_utility_first",
+            (_op("a_hi", "4", "2"), _op("b_hi", "4", "2"), _op("c_big", "5", "5")),
+            ResourceBudget(total=Decimal("5")),
+        ),
+        # knapsack_suboptimal: equal ratios; greedy-ratio picks the big item and wastes
+        # budget, where cheapest-first reaches the optimum. Honest negative for the heuristic.
+        PlanningInstance(
+            "knapsack_suboptimal",
+            (_op("a_big", "3", "3"), _op("b_sm", "2", "2"), _op("c_sm", "2", "2")),
+            ResourceBudget(total=Decimal("4")),
+        ),
+        # cost_ascending_fails: many cheap low-value items crowd out one high-value item;
+        # cheapest-first and FIFO take the junk, ratio/utility take the prize.
+        PlanningInstance(
+            "cost_ascending_fails",
+            (*(_op(f"s{i}", "1", "1") for i in range(6)), _op("z_prize", "10", "6")),
+            ResourceBudget(total=Decimal("6")),
+        ),
+    )
+
+
+def _mandatory_instance() -> PlanningInstance:
+    """A mandatory low-ratio op that a pure yield-maximizer would drop to fit optional ops."""
+    return PlanningInstance(
+        "mandatory_safety",
+        (_op("m_mand", "1", "3", mandatory=True), _op("h1", "3", "2"), _op("h2", "3", "2")),
+        ResourceBudget(total=Decimal("5")),
+    )
+
+
+def _pack(ordered_ops: tuple[VerificationOp, ...], budget: ResourceBudget) -> frozenset[str]:
+    """Greedily take ops in the given order while they fit the budget (prereq-free)."""
+    selected: set[str] = set()
+    spent = Decimal(0)
+    total = Decimal(budget.total)
+    for op in ordered_ops:
+        cost = Decimal(op.cost)
+        if spent + cost <= total:
+            selected.add(op.op_id)
+            spent += cost
+    return frozenset(selected)
+
+
+def _ratio_key(op: VerificationOp) -> tuple[int, Fraction, str]:
+    if Decimal(op.cost) == 0:
+        return (0, Fraction(0), op.op_id)
+    return (1, -Fraction(Decimal(op.utility)) / Fraction(Decimal(op.cost)), op.op_id)
+
+
+def dtec_ratio_select(instance: PlanningInstance) -> frozenset[str]:
+    """DTEC prediction: the mandatory-first greedy value/cost-ratio planner (``M_B``)."""
+    return frozenset(plan_verification(instance.ops, instance.budget).selected)
+
+
+def fifo_select(instance: PlanningInstance) -> frozenset[str]:
+    """Baseline: take ops in declaration order until the budget is exhausted."""
+    return _pack(instance.ops, instance.budget)
+
+
+def cost_ascending_select(instance: PlanningInstance) -> frozenset[str]:
+    """Baseline: cheapest-first."""
+    return _pack(
+        tuple(sorted(instance.ops, key=lambda o: (Decimal(o.cost), o.op_id))), instance.budget
+    )
+
+
+def utility_descending_select(instance: PlanningInstance) -> frozenset[str]:
+    """Baseline: highest-utility-first (ignores cost)."""
+    return _pack(
+        tuple(sorted(instance.ops, key=lambda o: (-Decimal(o.utility), o.op_id))), instance.budget
+    )
+
+
+def yield_maximizer_select(instance: PlanningInstance) -> frozenset[str]:
+    """Unsafe baseline: pure value/cost-ratio greedy that IGNORES the mandatory flag.
+
+    Identical selection rule to the DTEC planner's *optional* ordering, but without the
+    mandatory-first guarantee — so it will drop an expensive low-ratio mandatory op to fit
+    higher-ratio optional ops. Included to demonstrate the safety property DTEC adds.
+    """
+    return _pack(tuple(sorted(instance.ops, key=_ratio_key)), instance.budget)
+
+
+def selected_utility(ops: tuple[VerificationOp, ...], selected: frozenset[str]) -> Decimal:
+    chosen = [Decimal(op.utility) for op in ops if op.op_id in selected]
+    return sum(chosen, Decimal(0))
+
+
+def brute_force_optimum(instance: PlanningInstance) -> Decimal:
+    """The exact budget-feasible maximum utility (respecting mandatory inclusion)."""
+    total = Decimal(instance.budget.total)
+    mandatory = {op.op_id for op in instance.ops if op.mandatory}
+    best = Decimal(0)
+    for r in range(len(instance.ops) + 1):
+        for combo in combinations(instance.ops, r):
+            ids = {op.op_id for op in combo}
+            if not mandatory <= ids:
+                continue
+            if sum((Decimal(op.cost) for op in combo), Decimal(0)) <= total:
+                util = sum((Decimal(op.utility) for op in combo), Decimal(0))
+                best = max(best, util)
+    return best
+
+
+class PlannerEvalResult(StrixModel):
+    """Equal-budget verified-yield measurement vs naive strategies, with an honest negative.
+
+    ``strategy_mean_yield_fraction`` is each strategy's mean (achieved utility / brute-force
+    optimum) across the prereq-free yield instances. The greedy value/cost-ratio planner has
+    the highest mean but is **not** universally optimal (``suboptimality_case``). Its genuine
+    safety advantage is ``dtec_mandatory_safe`` ∧ ``yield_maximizer_drops_mandatory``.
+    """
+
+    instance_count: int
+    strategy_mean_yield_fraction: tuple[tuple[str, Decimal], ...]
+    greedy_not_universally_optimal: bool
+    suboptimality_case: str
+    dtec_mandatory_safe: bool
+    yield_maximizer_drops_mandatory: bool
+    note: str = (
+        "Equal-budget comparison of genuinely different selection strategies (NOT circular — "
+        "yield is an objective output measurement). Greedy-ratio leads on mean yield but is a "
+        "heuristic, not optimal (documented counterexample); its decisive advantage is mandatory "
+        "safety, which a pure yield-maximizer violates. " + _OFFLINE_NOTE
+    )
+
+
+def evaluate_resource_planning() -> PlannerEvalResult:
+    bench = planning_benchmark()
+    strategies: tuple[tuple[str, Callable[[PlanningInstance], frozenset[str]]], ...] = (
+        ("dtec_ratio", dtec_ratio_select),
+        ("fifo", fifo_select),
+        ("cost_ascending", cost_ascending_select),
+        ("utility_descending", utility_descending_select),
+    )
+
+    def mean_fraction(select: Callable[[PlanningInstance], frozenset[str]]) -> Decimal:
+        fractions: list[Fraction] = []
+        for inst in bench:
+            opt = brute_force_optimum(inst)
+            got = selected_utility(inst.ops, select(inst))
+            fractions.append(Fraction(got) / Fraction(opt) if opt > 0 else Fraction(1))
+        return _frac_to_decimal(sum(fractions, Fraction(0)) / Fraction(len(fractions)))
+
+    means = tuple((name, mean_fraction(select)) for name, select in strategies)
+
+    # Honest negative: the instance (if any) where greedy-ratio underperforms the optimum.
+    subopt = ""
+    for inst in bench:
+        if selected_utility(inst.ops, dtec_ratio_select(inst)) < brute_force_optimum(inst):
+            subopt = inst.name
+            break
+
+    mand = _mandatory_instance()
+    mandatory_ids = {op.op_id for op in mand.ops if op.mandatory}
+    dtec_sel = dtec_ratio_select(mand)
+    # Safe = DTEC either keeps every mandatory op or abstains entirely (never a partial plan
+    # that silently drops a mandatory op).
+    dtec_safe = mandatory_ids <= dtec_sel or dtec_sel == frozenset()
+    ym_sel = yield_maximizer_select(mand)
+    return PlannerEvalResult(
+        instance_count=len(bench),
+        strategy_mean_yield_fraction=means,
+        greedy_not_universally_optimal=subopt != "",
+        suboptimality_case=subopt,
+        dtec_mandatory_safe=dtec_safe,
+        yield_maximizer_drops_mandatory=not (mandatory_ids <= ym_sel),
+    )
+
+
+# --------------------------------------------------------------------------
 # Aggregate
 # --------------------------------------------------------------------------
 
@@ -809,6 +1029,7 @@ class DTECBaselineReport(StrixModel):
     temporal: TemporalEvalResult
     calibration: CalibrationEvalResult
     compositional: CompositionalEvalResult
+    planning: PlannerEvalResult
     note: str = (
         "Offline synthetic comparative baselines (§5/§7/§8). DTEC-vs-label scores are a "
         "CONSISTENCY/REGRESSION check (labels are structurally defined, so a perfect DTEC "
@@ -830,4 +1051,5 @@ def run_dtec_baselines() -> DTECBaselineReport:
         temporal=evaluate_temporal_selection(),
         calibration=evaluate_calibration(),
         compositional=evaluate_compositional_support(),
+        planning=evaluate_resource_planning(),
     )

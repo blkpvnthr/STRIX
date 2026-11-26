@@ -84,6 +84,28 @@ the R (not-entailed) and K (missing-context) failures it cannot see** — a redu
 (propositional entailment is objectively defined); the missing-context / faithfulness cases do not,
 so they count as regression coverage, not an externally-validated capability.
 
+## R-N5 — Resource-bounded verification (equal-budget yield, 4 instances)
+
+Strategies compared at equal budget: DTEC greedy value/cost-ratio planner, FIFO, cheapest-first,
+utility-first, and a pure yield-maximizer (ratio-only, ignoring the mandatory flag). This
+comparison is **not** circular — "yield" is an objective output measurement, and the strategies
+are genuinely different algorithms on the same inputs.
+
+| Strategy | Mean yield-fraction of brute-force optimum |
+|---|---|
+| **DTEC greedy value/cost-ratio** | **0.9375** |
+| cheapest-first | 0.900 |
+| utility-first | 0.844 |
+| FIFO | 0.619 |
+
+**Honest result.** The greedy value/cost-ratio planner has the **highest mean yield-fraction**, and
+no baseline beats it on average — but it is a **heuristic, not optimal**: on the `knapsack_suboptimal`
+instance greedy-ratio reaches 3/4 of the optimum while cheapest-first reaches it (documented negative
+finding; equal-ratio items make greedy waste budget). Its **decisive advantage is safety, not yield**:
+the DTEC planner never drops a mandatory op (it selects mandatory-first or abstains, INV-N5-1),
+whereas the pure yield-maximizer **drops an expensive low-ratio mandatory op** to fit higher-ratio
+optional ops — a §12 "resource exhaustion must never weaken mandatory assurance" violation.
+
 ## Honest reading
 
 - **DTEC-vs-label is a consistency/regression check, not a §8 measurement.** Labels are structurally

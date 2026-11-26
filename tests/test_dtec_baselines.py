@@ -216,3 +216,52 @@ def test_binary_class_metrics_is_a_strix_model() -> None:
     m = confusion_metrics([(True, True)])
     assert isinstance(m, BinaryClassMetrics)
     assert m.model_dump()["f1"] == Decimal("1")
+
+
+# --------------------------------------------------------------------------
+# R-N5 — Resource-bounded verification: equal-budget yield vs naive strategies
+# --------------------------------------------------------------------------
+
+
+def _import_planner() -> object:
+    from strix.research_eval import dtec_baselines as mod
+
+    return mod
+
+
+def test_dtec_planner_has_highest_mean_yield_fraction_under_equal_budget() -> None:
+    mod = _import_planner()
+    result = mod.evaluate_resource_planning()  # type: ignore[attr-defined]
+    frac = dict(result.strategy_mean_yield_fraction)
+    # The greedy value/cost-ratio planner achieves the highest mean yield-fraction of the
+    # brute-force optimum under equal budget — no naive baseline beats it on average.
+    assert frac["dtec_ratio"] >= frac["fifo"]
+    assert frac["dtec_ratio"] >= frac["cost_ascending"]
+    assert frac["dtec_ratio"] >= frac["utility_descending"]
+    assert frac["dtec_ratio"] >= Decimal("0.9")
+    # And it is a genuine spread (FIFO is clearly worse — not a tie of strawmen).
+    assert frac["fifo"] < frac["dtec_ratio"]
+
+
+def test_greedy_ratio_has_documented_suboptimality_case() -> None:
+    mod = _import_planner()
+    result = mod.evaluate_resource_planning()  # type: ignore[attr-defined]
+    # Falsification-first: the greedy heuristic is NOT optimal in general. The harness must
+    # surface a concrete instance where greedy-ratio < the brute-force optimum.
+    assert result.greedy_not_universally_optimal is True
+    assert result.suboptimality_case != ""
+
+
+def test_dtec_planner_never_drops_a_mandatory_op_but_a_yield_maximizer_does() -> None:
+    mod = _import_planner()
+    result = mod.evaluate_resource_planning()  # type: ignore[attr-defined]
+    # The key safety property (INV-N5-1): resource optimization must never drop a mandatory
+    # op. The DTEC planner keeps it (or abstains); a pure yield-maximizer drops it.
+    assert result.dtec_mandatory_safe is True
+    assert result.yield_maximizer_drops_mandatory is True
+
+
+def test_resource_planning_included_in_aggregate_report() -> None:
+    report = run_dtec_baselines()
+    assert report.planning.dtec_mandatory_safe is True
+    assert report.planning.greedy_not_universally_optimal is True
