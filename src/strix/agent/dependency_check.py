@@ -35,9 +35,12 @@ def assess_claim_independence(
     origins = {e.content_hash for e in resolved}
     providers = {e.provider for e in resolved}
     distinct_origins = len(origins)
-    artificial = cited > 1 and distinct_origins <= 1
-    single_sourced = distinct_origins <= 1
-    if artificial:
+    # Zero resolved citations is NOT "one origin": it is no corroborating evidence at all.
+    artificial = cited > 1 and distinct_origins == 1
+    single_sourced = cited >= 1 and distinct_origins == 1
+    if cited == 0:
+        detail = "no resolved cited evidence (no origin to corroborate)"
+    elif artificial:
         detail = (
             f"{cited} citations collapse to {distinct_origins} distinct origin "
             "(shared content hash) — not independent corroboration"

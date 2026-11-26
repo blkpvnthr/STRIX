@@ -14,8 +14,18 @@ configured for this request contributes ``NOT_APPLICABLE`` (the policy did not r
 the RC-3 guard in ``compose_statuses`` refuses a vacuous admission if nothing applies.
 
 The decision carries a deterministic content digest (certificate identity) and maps to the
-existing five gateway dispositions; signing reuses ``assurance.signing`` (Ed25519). No
-ordinary path may bypass this evaluator — experimental/ablation paths stay isolated.
+existing five gateway dispositions; signing reuses ``assurance.signing`` (Ed25519).
+
+**Integration status (honest, 2026-11-26).** ``admit_dtec`` is the complete unified evaluator
+but is NOT yet wired into the live research lifecycle — its callers today are the offline
+ablation/baseline harness (``research_eval``) and the integration tests. The live chokepoint
+(``agent.orchestrator.run_research_question``) currently enforces the recompute verifier plus
+the conclusion-level ``A_C`` (``agent.conclusion_check``) and the dependency projection
+(``agent.dependency_check``); the per-claim temporal / institutional / budget / entity-binding /
+full-compositional engines run here and in the harness but are not yet invoked per live claim.
+Completing that wiring (the AgentClaim→EvidenceGraph bridge) is scoped-remaining engineering —
+see ``research/execution-state.md`` (S18). Do not read this module as proof that eleven
+predicates gate every live answer today.
 """
 
 from __future__ import annotations

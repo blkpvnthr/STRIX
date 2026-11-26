@@ -61,6 +61,24 @@ def test_rejects_conclusion_when_a_claim_was_recompute_contradicted() -> None:
     assert "bad" in result.opposing_claim_ids
 
 
+def test_contradicted_claim_rejects_even_with_no_verified_premise() -> None:
+    # Consistency: a recompute-contradicted claim is refuted evidence whether or not anything
+    # else verified. An empty-verified run with a contradiction must REJECT, not abstain.
+    unresolved = (_claim("bad", AgentVerificationStatus.CONTRADICTED),)
+    result = verify_final_answer(proposition="refuted claim", verified=(), unresolved=unresolved)
+    assert result.outcome == "rejected"
+    assert "bad" in result.opposing_claim_ids
+
+
+def test_admitted_answer_has_no_not_applicable_reason_codes() -> None:
+    # An ADMITTED conclusion must not carry NOT_APPLICABLE predicate codes (e.g. R's
+    # "not_formally_representable") as if they were problems — only FAIL/UNKNOWN are defects.
+    verified = (_claim("c1", AgentVerificationStatus.VERIFIED),)
+    result = verify_final_answer(proposition="x", verified=verified, unresolved=())
+    assert result.outcome == "admitted"
+    assert result.reason_codes == ()
+
+
 def test_unrelated_non_contradicted_unresolved_claims_do_not_reject() -> None:
     # INSUFFICIENT_EVIDENCE / STALE are not refutations, so they are not treated as
     # substantive opposition to the conclusion.

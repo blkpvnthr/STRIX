@@ -2,10 +2,12 @@
 
 Each :class:`Demonstration` names a §4 capability, a synthetic scenario, what DTEC does, what a
 fair naive comparator does, whether the capability is demonstrated (DTEC correct AND distinct
-from naive), and the reproducible artifact that backs it. Most capabilities are demonstrated by
-*calling* the existing offline harnesses (``dtec_ablation`` / ``dtec_baselines``) so the numbers
-are recomputed, not quoted; two gaps (inconsistent-premises detection, historical evidence
-reconstruction) are demonstrated inline on the core primitives.
+from naive), and the reproducible artifact that backs it. **Every ``demonstrates`` flag is
+computed, never hardcoded:** the engine capabilities by *calling* the offline harnesses
+(``dtec_ablation`` / ``dtec_baselines``) so the numbers are recomputed, not quoted; the remaining
+capabilities (inconsistent-premises detection, historical evidence reconstruction, final-answer
+synthesis, citation integrity) inline on the core primitives (``admit_conclusion`` /
+``admissible_evidence_ids``).
 
 **Honesty:** these are deterministic synthetic demonstrations, NOT empirical validation — the
 live comparative arms and real corpora are EXTERNALLY_BLOCKED (model credentials + budget).
@@ -18,6 +20,7 @@ from datetime import UTC, datetime, timedelta
 from strix.evidence_graph.calculus import (
     Conclusion,
     FormalEncoding,
+    SupportBalance,
     admit_conclusion,
 )
 from strix.evidence_graph.inference import And, Atom, Const, Not
@@ -39,7 +42,7 @@ from strix.research_eval.dtec_baselines import (
     evaluate_dependency_detection,
     evaluate_resource_planning,
     evaluate_temporal_selection,
-    null_floor_predicts_dependent,
+    semantic_tuple_match_predicts_dependent,
     value_dedup_predicts_dependent,
 )
 
@@ -163,18 +166,20 @@ def _dependency_pair_demo(
 ) -> Demonstration:
     pair = next(p for p in dependency_benchmark() if p.attack_class == attack_class)
     dtec = dtec_predicts_dependent(pair)
-    naive_count = null_floor_predicts_dependent(pair)
     naive_value = value_dedup_predicts_dependent(pair)
-    # Demonstrated when DTEC classifies the pair correctly and at least one naive baseline
-    # does not.
+    naive_tuple = semantic_tuple_match_predicts_dependent(pair)
+    # Demonstrated when DTEC classifies the pair correctly AND at least one *non-strawman*
+    # baseline (value dedup / semantic-tuple record linkage) gets it wrong. The constant-False
+    # null_floor is deliberately NOT used as the distinctness criterion (the baselines module
+    # disclaims it as a floor, never a baseline DTEC "beats").
     correct = dtec == pair.dependent
-    naive_wrong = (naive_count != pair.dependent) or (naive_value != pair.dependent)
+    naive_wrong = (naive_value != pair.dependent) or (naive_tuple != pair.dependent)
     return Demonstration(
         capability=capability,
         scenario=scenario,
         dtec_result=f"DTEC dependent={dtec} (ground truth dependent={pair.dependent})",
         comparator_result=(
-            f"naive citation-count dependent={naive_count}; value-dedup dependent={naive_value}"
+            f"value-dedup dependent={naive_value}; semantic-tuple dedup dependent={naive_tuple}"
         ),
         demonstrates=correct and naive_wrong,
         artifact="strix.research_eval.dtec_baselines.dependency_benchmark",
@@ -291,28 +296,76 @@ def run_demonstrations() -> DemonstrationReport:
         )
     )
 
-    # Phase 9 live-path integration capabilities (reproducible artifacts = the agent tests).
+    # Phase 9 live-path integration capabilities — COMPUTED via the core conclusion calculus
+    # that backs the live checks (not hardcoded). Clean vs adversarial scenarios.
+    _clean = admit_conclusion(
+        Conclusion(
+            conclusion_id="demo-clean",
+            proposition="supported conclusion",
+            premise_claim_ids=("p1",),
+            balance=SupportBalance(supporting=("p1",)),
+        ),
+        {"p1": AdmissionOutcome.ADMITTED},
+    )
+    _contra = admit_conclusion(
+        Conclusion(
+            conclusion_id="demo-contra",
+            proposition="contradicted conclusion",
+            premise_claim_ids=("p1",),
+            balance=SupportBalance(supporting=("p1",), opposing=("x",), substantive_conflict=True),
+        ),
+        {"p1": AdmissionOutcome.ADMITTED},
+    )
     demos.append(
         Demonstration(
             capability="independently_verified_final_answer_synthesis",
             scenario="the complete synthesized answer evaluated at conclusion level (A_C)",
             dtec_result=(
-                "conclusion-level verdict (admitted / abstained / rejected) attached to every "
-                "answer; a recompute-contradicted run rejects the conclusion"
+                f"clean conclusion={_clean.outcome.value}; contradicted conclusion="
+                f"{_contra.outcome.value}"
             ),
             comparator_result="naive synthesis: emit the prose regardless of conclusion support",
-            demonstrates=True,
-            artifact="tests/agent/test_conclusion_check.py",
+            demonstrates=(
+                _clean.outcome is AdmissionOutcome.ADMITTED
+                and _contra.outcome is AdmissionOutcome.REJECTED
+            ),
+            artifact="strix.evidence_graph.calculus.admit_conclusion (live: conclusion_check)",
         )
+    )
+    # Citation integrity: an assertion whose cited premise is NOT admitted is rejected at the
+    # conclusion level; a backed one is admitted.
+    _backed = admit_conclusion(
+        Conclusion(
+            conclusion_id="demo-backed",
+            proposition="cited premise admitted",
+            premise_claim_ids=("p1",),
+            balance=SupportBalance(supporting=("p1",)),
+        ),
+        {"p1": AdmissionOutcome.ADMITTED},
+    )
+    _unbacked = admit_conclusion(
+        Conclusion(
+            conclusion_id="demo-unbacked",
+            proposition="cited premise not admitted",
+            premise_claim_ids=("p1",),
+            balance=SupportBalance(supporting=("p1",)),
+        ),
+        {"p1": AdmissionOutcome.REJECTED},
     )
     demos.append(
         Demonstration(
             capability="citation_integrity",
-            scenario="every material assertion maps to an admitted, untampered claim certificate",
-            dtec_result="supporting-documentation + citation-mapping integrity enforced (§7/§30)",
+            scenario="an assertion whose cited premise is not admitted must be rejected",
+            dtec_result=(
+                f"admitted-premise conclusion={_backed.outcome.value}; "
+                f"unadmitted-premise conclusion={_unbacked.outcome.value}"
+            ),
             comparator_result="ungrounded prose with no verifiable citation mapping",
-            demonstrates=True,
-            artifact="strix.agent.documentation / strix.answering.validate.validate_response",
+            demonstrates=(
+                _backed.outcome is AdmissionOutcome.ADMITTED
+                and _unbacked.outcome is AdmissionOutcome.REJECTED
+            ),
+            artifact="strix.evidence_graph.calculus.admit_conclusion (live: answering.validate)",
         )
     )
 

@@ -88,3 +88,15 @@ def test_unresolved_citations_do_not_count_as_origins() -> None:
     verdict = assess_claim_independence(_claim(("E1", "E2")), col)
     assert verdict.cited_count == 1  # only resolvable evidence counts
     assert verdict.distinct_origin_count == 1
+
+
+def test_zero_resolved_evidence_is_not_single_sourced_one_origin() -> None:
+    # A claim whose citations all fail to resolve has NO origin — it must not be mislabeled as
+    # single-sourced "one origin".
+    col = EvidenceCollector()
+    verdict = assess_claim_independence(_claim(("missing-1", "missing-2")), col)
+    assert verdict.cited_count == 0
+    assert verdict.distinct_origin_count == 0
+    assert verdict.single_sourced is False
+    assert verdict.artificial_corroboration is False
+    assert "no resolved" in verdict.detail.lower()

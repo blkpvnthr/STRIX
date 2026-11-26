@@ -110,7 +110,10 @@ def persist_agent_run(
             per_run["response.json"] = pretty_json_bytes(response_dump)
             per_run["response.txt"] = render_response(response).encode("utf-8")
             manifest["synthesis_version"] = SYNTHESIS_VERSION
-            manifest["response_hash"] = canonical_hash(response_dump)
+            # Hash over exclude_none so that absent/None optional fields do not change the
+            # digest — this keeps replay stable across additive optional-field additions
+            # (e.g. conclusion_verification) for runs persisted before the field existed.
+            manifest["response_hash"] = canonical_hash(response.model_dump(exclude_none=True))
         return per_run, pretty_json_bytes(manifest)
 
     store = RunStore(state_dir)

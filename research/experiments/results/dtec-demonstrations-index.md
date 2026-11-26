@@ -10,7 +10,11 @@
 
 `run_demonstrations()` returns 13 `Demonstration` records (the 12 §4 capabilities + an overall
 dependency-detection summary), each with the capability, scenario, DTEC result, fair-comparator
-result, a `demonstrates` flag, and the reproducible artifact. All 13 currently demonstrate.
+result, a `demonstrates` flag, and the reproducible artifact. **Every `demonstrates` flag is
+computed** — from the offline harnesses (`dtec_ablation` / `dtec_baselines`) for the engine
+capabilities, and from the core conclusion calculus (`admit_conclusion`, which backs the live
+`agent.conclusion_check`) for the final-answer-synthesis and citation-integrity rows — never
+hardcoded. All 13 currently demonstrate.
 
 | § | §4 capability | DTEC vs fair comparator | Reproducible artifact |
 |---|---|---|---|
@@ -24,8 +28,8 @@ result, a `demonstrates` flag, and the reproducible artifact. All 13 currently d
 | 8 | Appropriate uncertainty and abstention | ECE discriminates calibrated (0.00) from overconfident (0.35) | `dtec_baselines.evaluate_calibration` |
 | 9 | Resource-bounded verification | Greedy ratio leads on mean yield-fraction AND never drops a mandatory op; pure yield-maximizer does | `dtec_baselines.evaluate_resource_planning` |
 | 10 | Institutional evidence admissibility | Removing `A_inst` lets an unauthorized-org item through (Δ>0) | `dtec_ablation.run_ablation` |
-| 11 | Independently verified final-answer synthesis | The complete synthesized answer gets a conclusion-level verdict (admitted/abstained/rejected); a recompute-contradicted run rejects | `tests/agent/test_conclusion_check.py` (live path: `agent/conclusion_check`) |
-| 12 | Citation integrity | Every material assertion maps to an admitted, untampered claim certificate (§7/§30) | `agent/documentation` + `answering/validate.validate_response` |
+| 11 | Independently verified final-answer synthesis | A clean conclusion is ADMITTED; a substantively-contradicted one is REJECTED (computed via `admit_conclusion`) | `evidence_graph.calculus.admit_conclusion` (live: `agent/conclusion_check`) |
+| 12 | Citation integrity | A conclusion whose cited premise is admitted is ADMITTED; one whose premise is not admitted is REJECTED (computed) | `evidence_graph.calculus.admit_conclusion` (live: `answering/validate`) |
 
 Fair comparators and negative findings are preserved in `dtec-baselines-offline.md` and
 `negative-findings/dtec-offline-negative-findings.md` (e.g. the strongest fair dependency baseline

@@ -153,9 +153,11 @@ def _replay_response(
     except (TypeError, ValueError) as exc:
         raise ReplayError(f"run {run_id} has a malformed response.json: {exc}") from exc
 
-    # 1. Hash integrity — reconstruct the model and re-hash as persistence did.
+    # 1. Hash integrity — reconstruct the model and re-hash as persistence did. exclude_none
+    # mirrors persistence so an additive optional field (e.g. conclusion_verification) absent
+    # from a pre-field run does not read as tampering.
     stored_hash = manifest.get("response_hash")
-    recomputed_hash = canonical_hash(response.model_dump())
+    recomputed_hash = canonical_hash(response.model_dump(exclude_none=True))
     hash_matches = stored_hash == recomputed_hash
     if not hash_matches:
         problems.append("response_hash does not match the persisted response")

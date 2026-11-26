@@ -73,11 +73,14 @@ def validate_answer(
     # §3 "communicate unresolved contradictions" requirement).
     cv = answer.conclusion_verification
     if cv is not None and cv.outcome == "rejected":
-        communicated = any("conclusion-level" in lim.lower() for lim in answer.limitations)
+        communicated = any(
+            "conclusion-level" in lim.lower() and "reject" in lim.lower()
+            for lim in answer.limitations
+        )
         if not communicated:
             problems.append(
                 "conclusion-level verification REJECTED the answer but no limitation "
-                "communicates it"
+                "communicates the rejection"
             )
 
     if problems:
