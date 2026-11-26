@@ -13,7 +13,7 @@ Negative findings and rejected formulations are preserved.
 | `datasets/` | Offline **synthetic** corpora + independent ground truth (dependency / temporal / calculus / calibration / institutional benchmarks). No live/PII data. Dependency-aware partitioning prevents leakage across related origins / revision families / institutions. |
 | `baselines/` | Strong comparative baselines (A–E arms + specialized per-engine baselines: source-dependence estimation, temporal reasoning, provenance-aware retrieval, formal inference, calibration, verification optimization). |
 | `ablations/` | Engine ablation configurations `Δ_i = M(F) − M(F₋ᵢ)` and interaction `Δ_ij`, restricted to isolated experimental environments (never releasing unassured output as governed). |
-| `results/` | Raw + aggregated experimental outputs with CIs. Live arms are `EXTERNALLY_BLOCKED` (B-LIVE) → report **readiness**, not validation, until credentials + budget exist. |
+| `results/` | Raw + aggregated experimental outputs with CIs. Offline synthetic measurements available now: `results/dtec-ablation-offline.md` (engine `Δ_i`/`Δ_ij`) and `results/dtec-baselines-offline.md` (per-engine §8 targets vs named baselines). Live arms are `EXTERNALLY_BLOCKED` (B-LIVE) → report **readiness**, not validation, until credentials + budget exist. |
 | `negative-findings/` | Preserved refutations, rejected formulations, and failed hypotheses — first-class scientific output. |
 | `reproducibility/` | Manifests, seeds, configs, model versions, source snapshots needed to reproduce any reported result. |
 
