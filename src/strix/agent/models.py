@@ -265,6 +265,24 @@ class ConclusionVerification(StrixModel):
     detail: str = ""
 
 
+class IndependenceVerdict(StrixModel):
+    """Dependency-aware independence of a claim's cited evidence (R-N1 / A_ind projection).
+
+    Applies the dependency engine's content-hash origin canonicalization to the claim's cited,
+    *preserved* evidence: citations sharing one underlying document (same ``content_hash``)
+    collapse to a single origin. ``artificial_corroboration`` is True when multiple citations
+    rest on a single real origin (overstated independence); ``single_sourced`` is True when
+    there is at most one distinct origin (not independently corroborated).
+    """
+
+    cited_count: int
+    distinct_origin_count: int
+    distinct_provider_count: int
+    artificial_corroboration: bool
+    single_sourced: bool
+    detail: str = ""
+
+
 class ResearchAnswer(StrixModel):
     """The validated, publishable answer to one research question."""
 
