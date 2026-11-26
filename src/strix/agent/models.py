@@ -92,6 +92,30 @@ INDEPENDENTLY_VERIFIABLE_TYPES = frozenset(
 # --------------------------------------------------------------------------
 
 
+class BibliographicMetadata(StrixModel):
+    """Optional rich reference metadata for an evidence source (spec §7).
+
+    Populated when a scholarly/structured source provides it (DOI, authors,
+    pages, dataset identifiers, methodology). Every field is optional and
+    defaults to empty so existing evidence constructions are unaffected; the
+    unified supporting-documentation contract (:mod:`strix.agent.documentation`)
+    surfaces whatever is present as a genuine numbered reference.
+    """
+
+    authors: tuple[str, ...] = ()
+    doi: str | None = None
+    pdf_url: str | None = None
+    #: Relevant page range (e.g. "12-18").
+    pages: str | None = None
+    #: Relevant section(s) (e.g. "§3.2").
+    sections: str | None = None
+    dataset_id: str | None = None
+    #: ISO-8601 timestamp the underlying data is as-of, when distinct from publish.
+    data_timestamp: str | None = None
+    #: Verified calculation/methodology label, when the reference is a computation.
+    methodology: str | None = None
+
+
 class AgentEvidence(StrixModel):
     """A citable source record. A content hash proves artifact integrity, not
     that the source's assertions are true."""
@@ -112,6 +136,8 @@ class AgentEvidence(StrixModel):
     freshness_status: FreshnessStatus = FreshnessStatus.UNKNOWN
     #: Bounded excerpt actually retrieved from the source, when permitted.
     excerpt: str | None = None
+    #: Optional rich bibliographic metadata (spec §7 supporting documentation).
+    bibliographic: BibliographicMetadata | None = None
 
     @staticmethod
     def make_id(content_hash: str, source_url: str | None, anchor: str | None) -> str:

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from strix.agent.documentation import build_supporting_documentation
 from strix.agent.evidence_collector import EvidenceCollector
 from strix.agent.models import (
     AgentClaim,
@@ -246,7 +247,10 @@ def _verification_tally(answer: ResearchAnswer) -> str:
 def render_response(response: ResearchResponse) -> str:
     """Render a conversational ResearchResponse for the CLI (spec §11 ordering)."""
     answer = response.verified_answer
-    citation_index = {e.evidence_id: i + 1 for i, e in enumerate(response.sources)}
+    # The single §7/§15 supporting-documentation contract the API and frontend
+    # also render: numbering and references come from it, never recomputed here.
+    documentation = build_supporting_documentation(response)
+    citation_index = {r.evidence_id: r.number for r in documentation.references}
     lines: list[str] = []
     lines.append(f"Question:\n{response.question}\n")
     lines.append(f"Answer:\n{response.direct_answer}\n")
@@ -305,13 +309,27 @@ def render_response(response: ResearchResponse) -> str:
             lines.append(f"  - {fact.statement}")
         lines.append("")
 
-    if response.sources:
+    if documentation.references:
         lines.append("Sources:")
-        for eid, idx in citation_index.items():
-            ev = next(e for e in response.sources if e.evidence_id == eid)
-            url = ev.source_url or "(no public URL)"
-            lines.append(f"  [{idx}] {ev.source_title} — {ev.provider}")
-            lines.append(f"      {url}")
+        for ref in documentation.references:
+            header = f"  [{ref.number}] {ref.title} — {ref.provider}"
+            if ref.published_date:
+                header += f" ({ref.published_date})"
+            lines.append(header)
+            if ref.authors:
+                lines.append(f"      {', '.join(ref.authors)}")
+            locator = []
+            if ref.pages:
+                locator.append(f"pp. {ref.pages}")
+            if ref.sections:
+                locator.append(ref.sections)
+            if locator:
+                lines.append(f"      {', '.join(locator)}")
+            if ref.doi:
+                lines.append(f"      DOI: {ref.doi}")
+            lines.append(f"      {ref.url or '(no public URL)'}")
+            if ref.pdf_url:
+                lines.append(f"      PDF: {ref.pdf_url}")
         lines.append("")
 
     if response.monitoring_indicators:

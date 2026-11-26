@@ -181,10 +181,47 @@ export interface Assurance {
   error?: string;
 }
 
+// Unified supporting-documentation + citation-mapping contract (spec §7/§15).
+// The same contract the CLI and workers render; inline [n] citations resolve to
+// `references[n-1]`, and `integrity.complete` is the material-claim-traceability
+// signal the §30 success criteria track.
+export interface ReferenceDocument {
+  number: number;
+  evidence_id: string;
+  title: string;
+  provider: string;
+  url?: string | null;
+  published_date?: string | null;
+  content_hash: string;
+  authors: string[];
+  doi?: string | null;
+  pdf_url?: string | null;
+  pages?: string | null;
+  sections?: string | null;
+  dataset_id?: string | null;
+  data_timestamp?: string | null;
+  methodology?: string | null;
+  cited_by_claim_ids: string[];
+}
+
+export interface CitationMappingIntegrity {
+  complete: boolean;
+  uncited_claims: string[];
+  orphan_references: number[];
+  dangling_markers: string[];
+}
+
+export interface SupportingDocumentation {
+  references: ReferenceDocument[];
+  claim_citations: Record<string, number[]>;
+  integrity: CitationMappingIntegrity;
+}
+
 export interface ResearchResult {
   run_id: string;
   answer: Answer;
   response: ResearchResponse | null;
+  documentation: SupportingDocumentation | null;
   usage: Usage;
   claims: Claim[];
   thread_id?: string | null;

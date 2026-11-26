@@ -32,8 +32,9 @@ blocked).
 | S4 | Author `research/hypothesis-registry.md` | DONE |
 | S5 | Author `research/execution-state.md` (this file) | DONE |
 | S6 | Reconcile `requirements-traceability.md` to master-spec IDs | pending |
-| S7 | Commit anchor documents | pending |
-| S8+ | Workstreams WS-A..WS-H (see §4) | pending |
+| S7 | Commit anchor documents | DONE (c846f42) |
+| S8 | WS-A: unified governed response contract (§7/§15) | DONE — `agent/documentation.py` (BibliographicMetadata, ReferenceDocument, SupportingDocumentation, CitationMappingIntegrity, build_supporting_documentation); shared by webapi (`documentation` in result), CLI renderer (refactored to the contract), React (`SupportingDocumentationPanel` + types). TDD: 8 unit + 2 webapi + 2 renderer + 4 vitest. Suite 2245 passed; vitest 15; tsc/build clean. |
+| S9+ | Workstreams WS-B..WS-J (see §4) | pending |
 
 ## 4. Requirements registry / workstream backlog
 
@@ -43,7 +44,7 @@ the single next executable step; a dependency-ready task is one whose deps are a
 | WS | Requirement (spec §) | Deps | Status | Next executable action |
 |---|---|---|---|---|
 | — | Anchor docs (spec §0, §13) | — | IN_PROGRESS | reconcile traceability; commit |
-| WS-A | Unified governed response contract (§15/§7) | answering, webapi, web | NOT_STARTED | TDD a shared `ResearchResponse` (direct answer / analysis / limitations / documentation / assurance) + rich citation metadata; adapt CLI/API/React/worker to render it |
+| WS-A | Unified governed response contract (§15/§7) | answering, webapi, web | **OFFLINE_TESTED** | DONE (S8). Shared supporting-documentation + citation-mapping contract across CLI/API/React; rich reference metadata; §30 integrity signals surfaced. |
 | WS-B | Adaptive-tier → gateway wiring (§13) | assurance/adaptive, assurance/gateway | NOT_STARTED | TDD: gateway consults adaptive tier for the acceptance bar; prove safety floor never relaxes |
 | WS-C | Governed financial assistant tools (§20) | finance/*, assurance/gateway, WS-A | NOT_STARTED | TDD deterministic read-only finance tools (net-worth, budget-variance, portfolio-drift, bill-forecast) behind the gateway; evidence-grounded recommendation |
 | WS-D | Deployment config, offline (§24/§25) | webapi, outbox, supabase migrations | NOT_STARTED | Dockerfile(s) + docker-compose + migration runner + /health + /ready endpoints; validate build locally; **no deploy** |

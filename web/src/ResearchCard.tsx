@@ -12,6 +12,7 @@ import type {
   SupportingFact,
 } from "./types";
 import { StatusBadge, fmtTime } from "./ui";
+import { SupportingDocumentationPanel } from "./SupportingDocumentation";
 
 export function ResearchCard({
   job,
@@ -205,8 +206,12 @@ function ConversationalResult({
         </section>
       )}
 
-      {/* 7. Sources + inline citations */}
+      {/* 7. Sources + inline citations (interactive, click-to-inspect) */}
       {response.sources.length > 0 && <Sources sources={response.sources} result={result} onInspect={onInspect} />}
+
+      {/* 7b. Unified supporting-documentation contract (spec §7/§15): genuine
+          numbered references + citation-mapping integrity caveat. */}
+      <SupportingDocumentationPanel documentation={result.documentation} />
 
       {/* Contradictory + unresolved */}
       {response.contradictory_evidence.length > 0 && (

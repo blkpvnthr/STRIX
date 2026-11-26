@@ -27,6 +27,7 @@ from strix.run_store import RunStore
 from strix.webapi.serializers import (
     serialize_answer,
     serialize_claims,
+    serialize_documentation,
     serialize_response,
     serialize_usage,
 )
@@ -157,6 +158,7 @@ class ResearchService:
             "run_id": outcome.run_id,
             "answer": serialize_answer(outcome.answer),
             "response": serialize_response(outcome.response),
+            "documentation": serialize_documentation(outcome.response),
             "usage": serialize_usage(outcome.usage),
             "claims": serialize_claims(outcome.claims),
             "thread_id": job.thread_id,
