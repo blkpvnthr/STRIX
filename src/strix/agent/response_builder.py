@@ -17,6 +17,7 @@ from strix.agent.models import (
     AgentClaimType,
     AgentEvidence,
     AgentVerificationStatus,
+    ConclusionVerification,
     EpistemicClass,
     ResearchAnswer,
     ResearchResponse,
@@ -38,6 +39,7 @@ def build_answer(
     collector: EvidenceCollector,
     limitations: tuple[str, ...],
     now: datetime,
+    conclusion_verification: ConclusionVerification | None = None,
 ) -> ResearchAnswer:
     """Assemble a validated-ready ResearchAnswer from verified structured claims."""
     cited_ids = _cited_evidence_ids(verified_claims, unresolved_claims)
@@ -54,6 +56,7 @@ def build_answer(
         evidence=evidence,
         limitations=limitations,
         disclaimer=_DISCLAIMER,
+        conclusion_verification=conclusion_verification,
     )
 
 

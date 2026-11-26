@@ -249,6 +249,22 @@ class AgentClaim(StrixModel):
 # --------------------------------------------------------------------------
 
 
+class ConclusionVerification(StrixModel):
+    """Conclusion-level verdict for the COMPLETE final answer (DTEC ``A_C`` — R∧K∧F).
+
+    Distinct from per-claim verification: the whole synthesized conclusion is evaluated as
+    one :class:`~strix.evidence_graph.calculus.Conclusion` over the verified claims as
+    premises. ``outcome`` is the admission-outcome value (``admitted`` / ``abstained`` /
+    ``rejected``). ``opposing_claim_ids`` are claims whose recompute was CONTRADICTED (genuine
+    refuted evidence in the run). Additive — it never relaxes per-claim verification.
+    """
+
+    outcome: str
+    reason_codes: tuple[str, ...] = ()
+    opposing_claim_ids: tuple[str, ...] = ()
+    detail: str = ""
+
+
 class ResearchAnswer(StrixModel):
     """The validated, publishable answer to one research question."""
 
@@ -261,6 +277,9 @@ class ResearchAnswer(StrixModel):
     evidence: tuple[AgentEvidence, ...]
     limitations: tuple[str, ...]
     disclaimer: str
+    #: Conclusion-level verdict over the complete final answer (DTEC A_C). Optional for
+    #: backward compatibility; the orchestrator always populates it on the live path.
+    conclusion_verification: ConclusionVerification | None = None
 
     @property
     def observed_dates(self) -> tuple[date, ...]:  # pragma: no cover - convenience
