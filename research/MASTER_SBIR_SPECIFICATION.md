@@ -60,6 +60,8 @@ These are **engineering** facts. They are *not* scientific evaluation of H1–H1
 | Requirements traceability | `research/requirements-traceability.md` |
 | Milestone tracker | `research/milestone-tracker.md` |
 | Persistent execution ledger | `research/execution-state.md` |
+| Unified-calculus research companion (full detail) | **CONFIDENTIAL — pre-filing IP; held outside the tracked tree per the disclosure policy (§33), not referenced by path here** |
+| Experiment scaffold (pre-registration/datasets/baselines/ablations/results) | `research/experiments/` |
 | Honest status report | `research/final-completion-report.md` |
 | C-Engine extraction audit (kept SEPARATE) | `research/cengine-extraction-audit.md` |
 | FALCON alignment (kept SEPARATE) | `research/falcon-alignment-assessment.md` |
@@ -93,6 +95,54 @@ and the empirical characterization of that composition — which is the SBIR res
 
 One **STRIX Core** serves four profiles — Research, Enterprise, Finance, Federal — through
 shared retrieval, verification, federation, temporal reasoning, authorization, and replay.
+
+### 1.1 Central architectural thesis — the unified compositional evidence-admission calculus
+
+STRIX is, first, a **computational evidence-science platform** and, second, an AI application
+platform. Its primary intellectual asset is the methodology that decides whether a machine-
+generated conclusion is **independently verifiable and admissible** — not the LLMs, databases,
+retrieval systems, or infrastructure, which remain interchangeable supporting components.
+
+That methodology is a **unified compositional evidence-admission calculus**. It *extends* the
+implemented claim-level calculus `A(c)=I∧T∧P_rov∧D_num∧S` (§7) to a conclusion-level predicate
+that also evaluates inferential validity, contextual applicability, conclusion faithfulness,
+institutional admissibility, dependency-aware independent-evidence sufficiency, and completion of
+mandatory verification within budget:
+
+```
+A★(C) = I ∧ T ∧ P_rov ∧ D_num ∧ S ∧ R ∧ K ∧ F ∧ A_inst ∧ A_ind ∧ M_B
+```
+
+evaluated under the four-valued admission algebra (PASS / FAIL / UNKNOWN / NOT_APPLICABLE). The
+extension is **monotone and fail-closed**: appending a mandatory predicate can only hold a
+conclusion to a *stricter* standard, never a weaker one (conditional soundness of the extension;
+see the confidential companion). Consequently **no existing invariant, predicate, certificate,
+authorization control, or security guarantee is removed or weakened** by this reorientation —
+"reconcile and extend," never rebuild.
+
+Six mathematically integrated research engines realize the added predicates: **(R-N1)** evidence
+dependency intelligence (dependency-aware independent-evidence sufficiency, `A_ind`); **(R-N2)**
+bitemporal evidence reasoning (validity vs knowledge intervals; prevention of future-information
+leakage; extended `T`); **(R-N3)** compositional evidence calculus (conclusion-level inference,
+required-derivation closure, optional formal entailment/counterexample search; the principal
+mathematical research initiative); **(R-N4)** calibrated uncertainty & selective admission
+(informs scheduling/qualification, **never overrides** a mandatory predicate); **(R-N5)**
+resource-bounded verification (maximize verified yield subject to budget; mandatory verification
+within budget else abstain, `M_B`); **(R-N6)** institutional admissibility (`A_inst=O∧L∧J∧X`,
+policy precedence, authorized federation, noninterference).
+
+**Status discipline is unchanged and absolute.** Every formula and metric target above and in the
+engine specifications is an **unvalidated research hypothesis / pre-registration target**, never a
+measurement. The building blocks (provenance, effective-sample-size statistics, bitemporal data
+models, SMT solving, calibration, selective classification, information-flow security, Ed25519) are
+**established methods, not asserted as independently novel**; the candidate contribution is their
+*composition* and its empirical characterization, which remains to be substantiated. A passing test
+is not a proof; a proof relative to an encoding is not empirical truth; engineering completion,
+scientific feasibility, technological novelty, patentability, and NSF readiness are **separate
+acceptance gates**. The full mathematical detail, the six-engine algorithms, the proof obligations,
+and the intellectual-property analysis are maintained in a **confidential, version-controlled-
+excluded research companion** under the pre-filing IP policy (§33); this public specification
+describes the methodology **functionally** only.
 
 ## 2. Scientific research problem statement & operational outcome
 

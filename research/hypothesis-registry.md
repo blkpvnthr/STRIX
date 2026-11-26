@@ -210,3 +210,41 @@ ground-truth mechanism, and the falsification criterion (what REJECTS it). All `
    Metal (`EXTERNALLY_BLOCKED`).
 
 Until 1–4, the honest report is **experimental readiness**, not empirical validation.
+
+---
+
+## 6. Unified-calculus research hypotheses (UC1–UC5) · NEWLY FORMALIZED
+
+The DTEC reorientation (master spec §1.1) adds six research engines composing into a unified
+conclusion-level admission calculus. The following hypotheses are **registered separately** and do
+**not** overwrite or redefine H1–H12 (which are preserved verbatim). They are stated here at the
+**capability level** using neutral terminology; the detailed algorithmic formulations, the internal
+methodology designation, and the manuscript cross-references (DH1–DH5) are held in the confidential
+research companion (§33 disclosure policy). **All are `NOT_EVALUATED`; every figure is a
+pre-registration TARGET, never a measurement.** Arms use the SBIR five-arm scheme (β: A unassured
+LLM · B conventional RAG · C pre-formal STRIX · D formal STRIX · E complete STRIX), extended so
+arm E includes the unified calculus; strong specialized baselines are added per engine
+(source-dependence estimation, temporal reasoning, provenance-aware retrieval, formal inference,
+calibration, verification optimization).
+
+| ID | Alternative hypothesis (H) | Null (H₀) | Primary engine | Primary metric (target) | Falsifies if |
+|---|---|---|---|---|---|
+| **UC1** | Dependency-aware independent-evidence admission reduces unsupported material claims vs duplicate-detection + naive source counting at comparable useful coverage | no reduction beyond baseline within CI | R-N1 | dependency-detection F1 (≥0.90); unsupported-claim reduction (≥50%) | F1 not ≥ strong baseline, or reduction CI includes null after FDR, or coverage collapses |
+| **UC2** | Two-axis bitemporal admission reduces incorrect revision selection and future-information leakage vs publication-date filtering | no reduction; or any observed leakage for arm D/E | R-N2 | temporal-selection accuracy (≥0.95); temporal leakage (**0**) | any leakage observed for D/E, or accuracy not above baseline within CI |
+| **UC3** | Compositional conclusion admission reduces invalid conclusions vs independent premise checking at equal evidence access | no reduction within CI | R-N3 | conclusion accuracy (≥0.95); certificate coverage (100% of admitted material claims) | accuracy not above independent-premise baseline within CI, or any admitted conclusion lacks required closure/certificate |
+| **UC4** | Calibrated selection improves selective risk at matched coverage, and adaptive scheduling improves verified yield at matched budget — **without ever weakening a mandatory predicate** | no selective-risk or yield improvement; or any mandatory weakening | R-N4, R-N5 | ECE (≤0.05, label-gated); abstention recall (≥0.90); verified yield at equal budget | no improvement within CI, or any exhaustion/confidence path weakens a mandatory predicate (hard invariant, also unit-tested) |
+| **UC5** | The integrated calculus improves reliability beyond isolated components (positive interaction `Δ_ij`) while preserving institutional isolation in the registered threat model | no interaction benefit beyond components; or any unauthorized disclosure | unified + R-N6 | composition vs best single-engine; unauthorized disclosures (**0 observed**) | integration ≤ best component within CI, or any unauthorized disclosure in the registered threat model |
+
+**Ground truth & method (shared):** offline synthetic corpora with independent ground truth
+(dependency / temporal / calculus / calibration / institutional benchmarks), paired comparisons,
+cluster bootstrap 95% CIs, risk-coverage analysis, Benjamini–Hochberg FDR, dependency-aware
+dataset partitioning (no leakage across related evidence origins / revision families / institutional
+environments), engine ablations `Δ_i = M(F) − M(F₋ᵢ)` and interactions `Δ_ij`. Live arms remain
+`EXTERNALLY_BLOCKED` (GPT-6 Luna credentials + budget, blocker B-LIVE) → until then the honest
+report is **experimental readiness**, not validation. Negative findings are preserved.
+
+**Mapping to the preserved registry (reconcile, don't replace):** UC1↔H4 (unsupported-claim
+reduction) + H5; UC2↔H6 (temporal/leakage); UC3↔H7/H8/H9 (citation/synthesis/numerical) at the
+conclusion level; UC4↔H10 (abstention) + H12 (adaptive/native); UC5↔H11 (cross-domain) + the
+composition thesis. The UC hypotheses are the conclusion-level and dependency/temporal/institutional
+extensions of the claim-level H-series; both schemes are retained.

@@ -198,3 +198,22 @@ service-gated with a documented plan. NOT blindly merged; newer architecture pre
   native backend) + 5 (Wave 9 retrieval, incl. 1 CRITICAL) + 4 (Wave 10a
   institutional, incl. 1 CRITICAL cross-tenant takeover) = 36. (Wave 10b adaptive
   assurance: reviewed, 0 confirmed defects — the 1 MAJOR raised was refuted.)
+
+## Unified-calculus engine extensions (DTEC reorientation, master spec §1.1)
+
+New requirement IDs for the six research engines + unified integration. Each **extends** the
+preserved core above; the STRIX-00x / GAP-00x scheme (`docs/research/milestone-0/`) remains
+authoritative for the core (S6 reconciliation: this block is the DTEC overlay, not a replacement).
+Detailed algorithm specs/proof obligations are confidential (§33). All `NOT_STARTED` at authoring;
+all research code is committed locally only (no push, blocker B-PUSH/B-VIS).
+
+| Req ID | Engine / capability | ALG IDs | Module(s) (neutral) | Verifying tests | State |
+|---|---|---|---|---|---|
+| DTEC-R-N1 | Evidence dependency intelligence (`A_ind`, N_eff, conservative bound) | ALG-N1-1..6 | `evidence_graph/{dependency,lineage}.py` | `tests/evidence_graph/test_eg_dependency.py` (planned) | NOT_STARTED |
+| DTEC-R-N2 | Bitemporal reasoning (`(V_i,K_i)`, two-axis `T`, leak-freedom) | ALG-N2-1..3 | `evidence_graph/temporal.py` | `tests/evidence_graph/test_eg_temporal.py` (planned) | NOT_STARTED |
+| DTEC-R-N3 | Compositional calculus (`A_C`, closure, ref + Z3 entailment, counterexamples) | ALG-N3-1..6 | `evidence_graph/{calculus,inference,counterexamples}.py` | `tests/evidence_graph/test_eg_calculus.py` (planned) | NOT_STARTED |
+| DTEC-R-N4 | Calibrated uncertainty & selective admission | ALG-N4-1..4 | `assurance/{calibration,abstention}.py` | `tests/assurance/test_calibration.py` (planned) | NOT_STARTED |
+| DTEC-R-N5 | Resource-bounded verification (`M_B`, planner, yield) | ALG-N5-1..4 | `assurance/{verification_planner,resource_optimizer}.py` | `tests/assurance/test_verification_planner.py` (planned) | NOT_STARTED |
+| DTEC-R-N6 | Institutional admissibility (`A_inst`, precedence, federation, noninterference) | ALG-N6-1..4 | `institutional/{admissibility,applicability,policy_reasoner,federation}.py` | `tests/institutional/test_admissibility.py` (planned) | NOT_STARTED |
+| DTEC-U | Unified admission `A★`/`A_DTEC` + certificate + gateway wiring + replay | ALG-U-1,2 | `evidence_graph/calculus.py::admit_conclusion` + `assurance/gateway` + `evidence_graph/certificates` | `tests/test_dtec_integration.py` (planned) | NOT_STARTED |
+| DTEC-EV | Scientific evaluation + ablations (engine benchmarks, `Δ_i`/`Δ_ij`) | — | `research_eval/*` + `research/experiments/*` | `tests/research_eval/*` (planned) | NOT_STARTED |
