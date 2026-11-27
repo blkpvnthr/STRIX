@@ -63,3 +63,15 @@ web/.playwright-mcp/
 
 # Local agent worktrees (never commit)
 .claude/worktrees/
+
+# ---------------------------------------------------------------------------
+# CONFIDENTIAL pre-filing IP material (defense-in-depth). The operative control
+# is "no remote push until repository visibility + disclosure authorization are
+# established" (see research/execution-state.md blocker B-VIS / B-PUSH). This
+# path additionally keeps the brand name, the detailed unified calculus, novelty
+# assessment, prior-art matrix, invention disclosures and the provisional-patent
+# technical package OUT of the tracked tree so an accidental future push cannot
+# carry them. Source code implements the methodology under neutral internal names
+# and is tracked+committed locally (never pushed) under the same B-PUSH control.
+research/dtec/_confidential/
+**/_confidential/

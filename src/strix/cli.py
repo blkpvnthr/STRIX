@@ -758,13 +758,21 @@ def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO
         err.write(f"\nError [{error_code(exc)}]: {exc}\n")
         return 1
 
+    released = True
     if not getattr(args, "no_assurance", False):
-        _render_ask_assurance(outcome, out)
+        released = _render_ask_assurance(outcome, out)
 
-    if outcome.response is not None:
-        out.write("\n" + render_response(outcome.response))
+    if released:
+        if outcome.response is not None:
+            out.write("\n" + render_response(outcome.response))
+        else:
+            out.write("\n" + render_answer(outcome.answer))
     else:
-        out.write("\n" + render_answer(outcome.answer))
+        out.write(
+            "\nANSWER WITHHELD by the independent assurance gateway (not released). "
+            "The synthesized answer is not shown; see the assurance verdict and reasons "
+            "above. Re-run with --no-assurance to view the unauthorized draft.\n"
+        )
     usage = outcome.usage
     out.write(
         f"\nUsage: {usage.model_calls} model calls, {usage.tool_calls} tool calls, "
@@ -774,12 +782,12 @@ def _cmd_ask(args: argparse.Namespace, state_dir: Path, out: TextIO, err: TextIO
     return 0
 
 
-def _render_ask_assurance(outcome: object, out: TextIO) -> None:
+def _render_ask_assurance(outcome: object, out: TextIO) -> bool:
     """Apply + render the independent governed assurance envelope for `strix ask`.
 
-    Fail-closed on the verdict but never crashes the command: if assurance cannot
-    be evaluated the answer is reported as NOT independently authorized. The audit
-    ledger defaults inside the run directory.
+    Returns whether the answer is authorized for release. Fail-closed: if assurance cannot be
+    evaluated the answer is NOT released (``False``) and the body must be withheld by the caller.
+    Never crashes the command. The audit ledger defaults inside the run directory.
     """
     from datetime import UTC, datetime
 
@@ -788,12 +796,12 @@ def _render_ask_assurance(outcome: object, out: TextIO) -> None:
     try:
         governed = govern_agent_outcome(outcome, now=datetime.now(UTC))  # type: ignore[arg-type]
     except Exception:
-        # Assurance must fail closed, never crash the CLI.
+        # Assurance must fail closed, never crash the CLI — and the answer is withheld.
         out.write(
-            "\nAssurance: UNAVAILABLE — answer NOT independently authorized "
+            "\nAssurance: UNAVAILABLE — answer NOT independently authorized and WITHHELD "
             "(assurance evaluation failed).\n"
         )
-        return
+        return False
     decision = governed.gateway_decision
     verdict = "RELEASED" if governed.answer_released else "WITHHELD"
     out.write(
@@ -806,9 +814,10 @@ def _render_ask_assurance(outcome: object, out: TextIO) -> None:
         out.write(f"  reasons: {', '.join(decision.reason_codes)}\n")
     if not governed.answer_released:
         out.write(
-            "  NOTE: the independent gateway did not authorize release; treat the "
-            "answer below as unverified/experimental.\n"
+            "  NOTE: the independent gateway did not authorize release; the answer is "
+            "withheld below.\n"
         )
+    return governed.answer_released
 
 
 def _agent_replay_text(outcome: object) -> str:

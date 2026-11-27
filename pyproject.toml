@@ -22,6 +22,19 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
     "httpx>=0.27",
+    # Property-based falsification testing of mathematical invariants
+    # (effective-independence bounds, admission-algebra monotonicity, bitemporal
+    # leak-freedom). Development-only; never imported by src/strix at runtime.
+    "hypothesis>=6.100",
+]
+# Formal reasoning layer (compositional evidence calculus, §R-N3). z3-solver backs
+# the optional SAT/UNSAT entailment check for the small formally-representable
+# conclusion fragment ONLY. It is isolated behind a typed interface + feature flag:
+# a missing solver, a solver timeout, or a solver UNKNOWN result can never admit a
+# conclusion — it degrades to the deterministic reference checker and, failing that,
+# to UNKNOWN (abstain). z3 is MIT-licensed.
+formal = [
+    "z3-solver>=4.12",
 ]
 docs = [
     "mkdocs>=1.6",
@@ -39,6 +52,13 @@ lakehouse = [
     "pyarrow>=16",
     "defusedxml>=0.7",
     "duckdb>=1.0",
+]
+# Cloud/hosted deployment: Supabase Auth JWT verification (asymmetric JWKS +
+# legacy HS256) and the durable Supabase/Postgres job store. Kept optional per the
+# project's dependency-isolation rule; the local app runs without these.
+cloud = [
+    "pyjwt[crypto]>=2.8",
+    "psycopg[binary]>=3.1",
 ]
 # Optional Snowflake cloud warehouse target (DE-4); not required for local dev.
 snowflake = [
@@ -98,7 +118,9 @@ plugins = ["pydantic.mypy"]
 strict = true
 warn_unreachable = true
 
-# Third-party libraries without type stubs (lakehouse Silver layer).
+# Third-party libraries without type stubs (lakehouse Silver layer + optional
+# formal-reasoning solver). z3 is imported only behind the typed interface in
+# evidence_graph/inference.py and is never a hard runtime dependency of the core.
 [[tool.mypy.overrides]]
-module = ["pyarrow.*", "defusedxml.*", "duckdb.*", "snowflake.*"]
+module = ["pyarrow.*", "defusedxml.*", "duckdb.*", "snowflake.*", "z3.*"]
 ignore_missing_imports = true

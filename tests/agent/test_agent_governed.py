@@ -99,6 +99,29 @@ def test_no_verified_claims_abstains_and_not_released(tmp_path: Path) -> None:
     assert ledger.verify_chain(RUN_ID).ok
 
 
+def test_rejected_conclusion_verdict_drives_gateway_rejection(tmp_path: Path) -> None:
+    # Step 7: the REAL conclusion-level DTEC verdict is the gateway's evidence signal. Even with
+    # verified claims present, a REJECTED conclusion (e.g. a recompute-contradicted run) must
+    # drive the gateway to reject and withhold the answer.
+    from strix.agent.models import ConclusionVerification
+
+    base = _outcome(verified=2, unresolved=0)
+    answer = base.answer.model_copy(
+        update={
+            "conclusion_verification": ConclusionVerification(
+                outcome="rejected", reason_codes=("recompute_contradicted_evidence",)
+            )
+        }
+    )
+    outcome = base.__class__(
+        answer=answer, run_id=base.run_id, run_dir=base.run_dir, usage=base.usage,
+        claims=base.claims,
+    )
+    governed = govern_agent_outcome(outcome, ledger=EventLedger(tmp_path), now=NOW)
+    assert governed.gateway_decision.outcome is GatewayOutcome.REJECTED
+    assert governed.answer_released is False
+
+
 def test_monitor_termination_forces_rejected(tmp_path: Path) -> None:
     ledger = EventLedger(tmp_path)
     monitor = BehaviorMonitor(MonitorPolicy(

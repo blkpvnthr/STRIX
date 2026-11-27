@@ -68,5 +68,20 @@ def validate_answer(
         if claim.verification.status is AgentVerificationStatus.VERIFIED:
             problems.append(f"unresolved claim {claim.claim_id} is marked VERIFIED")
 
+    # Conclusion-level verification must be communicated, not silently dropped: a REJECTED
+    # final conclusion has to be surfaced in the answer's limitations (fail-closed on the
+    # §3 "communicate unresolved contradictions" requirement).
+    cv = answer.conclusion_verification
+    if cv is not None and cv.outcome == "rejected":
+        communicated = any(
+            "conclusion-level" in lim.lower() and "reject" in lim.lower()
+            for lim in answer.limitations
+        )
+        if not communicated:
+            problems.append(
+                "conclusion-level verification REJECTED the answer but no limitation "
+                "communicates the rejection"
+            )
+
     if problems:
         raise ResponseValidationError("; ".join(problems))

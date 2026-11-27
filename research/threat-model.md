@@ -277,6 +277,17 @@ against a **real** external effect is **NOT_EVALUATED**.
 - **Genuine-source demonstrations not executed.** The end-to-end proof uses
   synthetic fixtures; demonstrations A–G against live authoritative sources are
   **NOT done** (`milestone-r1-report.md` §7).
+- **Computation-backed assertions trust claim-declared entity/metric.** A bare
+  `ComputationResult` attests a *value* but no entity or metric; the `support`/
+  `type_temporal` predicates therefore rest the entity/metric *labels* of a
+  computation-backed assertion on the (untrusted) claim's declared `subject_id`/
+  `metric`, not on independent attestation. An adversary can relabel a correct
+  computed value under a wrong entity/metric. Closing this requires binding
+  computations to entity-attesting provenance; it is scheduled as an **additive**
+  institutional-admissibility check (requirement `DTEC-R-N6-BIND`) that never weakens
+  the base predicate. Until then this is a known residual risk for computation-backed
+  claims. (Confirmed by independent adversarial review; detail in the confidential
+  research record.)
 
 ---
 

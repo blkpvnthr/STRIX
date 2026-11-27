@@ -133,6 +133,22 @@ def checked_div(numerator: object, denominator: object) -> Decimal:
             raise NumericalContractError("division is out of the supported range") from exc
 
 
+def checked_mul(a: object, b: object) -> Decimal:
+    """Exact product of two finite Decimals (float rejected).
+
+    Computes inside a local context sized to the operands' significant-digit counts so the
+    product is exact regardless of magnitude — the global 28-digit context would silently
+    round a large-magnitude product (e.g. market-cap-scale variance terms). Analogous to
+    :func:`checked_sub` / :func:`checked_div`.
+    """
+    x = as_decimal(a)
+    y = as_decimal(b)
+    needed = len(x.as_tuple().digits) + len(y.as_tuple().digits) + 2
+    with localcontext() as ctx:
+        ctx.prec = max(ARITH_PRECISION, needed)
+        return +(x * y)
+
+
 def quantize(value: object, quantum: object) -> Decimal:
     """Quantize to ``quantum`` with banker's rounding, collapsing negative zero.
 

@@ -92,6 +92,30 @@ INDEPENDENTLY_VERIFIABLE_TYPES = frozenset(
 # --------------------------------------------------------------------------
 
 
+class BibliographicMetadata(StrixModel):
+    """Optional rich reference metadata for an evidence source (spec §7).
+
+    Populated when a scholarly/structured source provides it (DOI, authors,
+    pages, dataset identifiers, methodology). Every field is optional and
+    defaults to empty so existing evidence constructions are unaffected; the
+    unified supporting-documentation contract (:mod:`strix.agent.documentation`)
+    surfaces whatever is present as a genuine numbered reference.
+    """
+
+    authors: tuple[str, ...] = ()
+    doi: str | None = None
+    pdf_url: str | None = None
+    #: Relevant page range (e.g. "12-18").
+    pages: str | None = None
+    #: Relevant section(s) (e.g. "§3.2").
+    sections: str | None = None
+    dataset_id: str | None = None
+    #: ISO-8601 timestamp the underlying data is as-of, when distinct from publish.
+    data_timestamp: str | None = None
+    #: Verified calculation/methodology label, when the reference is a computation.
+    methodology: str | None = None
+
+
 class AgentEvidence(StrixModel):
     """A citable source record. A content hash proves artifact integrity, not
     that the source's assertions are true."""
@@ -112,6 +136,8 @@ class AgentEvidence(StrixModel):
     freshness_status: FreshnessStatus = FreshnessStatus.UNKNOWN
     #: Bounded excerpt actually retrieved from the source, when permitted.
     excerpt: str | None = None
+    #: Optional rich bibliographic metadata (spec §7 supporting documentation).
+    bibliographic: BibliographicMetadata | None = None
 
     @staticmethod
     def make_id(content_hash: str, source_url: str | None, anchor: str | None) -> str:
@@ -223,6 +249,40 @@ class AgentClaim(StrixModel):
 # --------------------------------------------------------------------------
 
 
+class ConclusionVerification(StrixModel):
+    """Conclusion-level verdict for the COMPLETE final answer (DTEC ``A_C`` — R∧K∧F).
+
+    Distinct from per-claim verification: the whole synthesized conclusion is evaluated as
+    one :class:`~strix.evidence_graph.calculus.Conclusion` over the verified claims as
+    premises. ``outcome`` is the admission-outcome value (``admitted`` / ``abstained`` /
+    ``rejected``). ``opposing_claim_ids`` are claims whose recompute was CONTRADICTED (genuine
+    refuted evidence in the run). Additive — it never relaxes per-claim verification.
+    """
+
+    outcome: str
+    reason_codes: tuple[str, ...] = ()
+    opposing_claim_ids: tuple[str, ...] = ()
+    detail: str = ""
+
+
+class IndependenceVerdict(StrixModel):
+    """Dependency-aware independence of a claim's cited evidence (R-N1 / A_ind projection).
+
+    Applies the dependency engine's content-hash origin canonicalization to the claim's cited,
+    *preserved* evidence: citations sharing one underlying document (same ``content_hash``)
+    collapse to a single origin. ``artificial_corroboration`` is True when multiple citations
+    rest on a single real origin (overstated independence); ``single_sourced`` is True when
+    there is at most one distinct origin (not independently corroborated).
+    """
+
+    cited_count: int
+    distinct_origin_count: int
+    distinct_provider_count: int
+    artificial_corroboration: bool
+    single_sourced: bool
+    detail: str = ""
+
+
 class ResearchAnswer(StrixModel):
     """The validated, publishable answer to one research question."""
 
@@ -235,6 +295,9 @@ class ResearchAnswer(StrixModel):
     evidence: tuple[AgentEvidence, ...]
     limitations: tuple[str, ...]
     disclaimer: str
+    #: Conclusion-level verdict over the complete final answer (DTEC A_C). Optional for
+    #: backward compatibility; the orchestrator always populates it on the live path.
+    conclusion_verification: ConclusionVerification | None = None
 
     @property
     def observed_dates(self) -> tuple[date, ...]:  # pragma: no cover - convenience

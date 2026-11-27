@@ -2,6 +2,16 @@
 
 **Resource-Bounded Typed Evidence Verification for Trustworthy Autonomous AI**
 
+> **Reorientation note (2026-11-26).** The premise below is extended by the unified
+> compositional evidence-admission calculus (master spec §1.1): the claim-level admission
+> `A(c)=I∧T∧P_rov∧D_num∧S` is composed into a conclusion-level predicate adding inferential
+> validity, contextual applicability, conclusion faithfulness, institutional admissibility,
+> dependency-aware independent-evidence sufficiency, and mandatory-verification-within-budget. The
+> six engines and the unified path are implemented + offline-tested (see
+> `research/dtec-feasibility-readiness.md`); the six-NSF-objective alignment and the detailed
+> methodology are maintained confidentially per §33. All status/honesty disclaimers below apply
+> unchanged — nothing here claims eligibility, novelty, patentability, or funding success.
+
 ---
 
 > ## ⚠ DRAFT STATUS — READ FIRST

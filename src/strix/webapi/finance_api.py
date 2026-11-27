@@ -10,8 +10,9 @@ research answers; finance mutations are scoped to the service instance).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
@@ -325,26 +326,33 @@ def income_expense_op(
 # --- route registration (thin wrappers over the operations) ----------------
 
 
-def register_finance_routes(app: FastAPI, service: FinanceService) -> None:
-    """Attach the ``/api/finance`` routes backed by ``service``."""
+def register_finance_routes(
+    app: FastAPI, service: FinanceService, *, dependencies: Sequence[Any] | None = None
+) -> None:
+    """Attach the ``/api/finance`` routes backed by ``service``.
 
-    @app.post("/api/finance/accounts", response_model=AccountOut)
+    ``dependencies`` (e.g. ``[Depends(require_user)]``) is applied to every route so
+    no finance endpoint is reachable anonymously.
+    """
+    deps = list(dependencies or [])
+
+    @app.post("/api/finance/accounts", response_model=AccountOut, dependencies=deps)
     def create_account(body: AccountCreate) -> AccountOut:
         return create_account_op(service, body)
 
-    @app.get("/api/finance/accounts", response_model=AccountListOut)
+    @app.get("/api/finance/accounts", response_model=AccountListOut, dependencies=deps)
     def list_accounts(owner: Annotated[str | None, Query()] = None) -> AccountListOut:
         return list_accounts_op(service, owner)
 
-    @app.get("/api/finance/accounts/{account_id}", response_model=AccountOut)
+    @app.get("/api/finance/accounts/{account_id}", response_model=AccountOut, dependencies=deps)
     def get_account(account_id: str) -> AccountOut:
         return get_account_op(service, account_id)
 
-    @app.post("/api/finance/transactions", response_model=TransactionOut)
+    @app.post("/api/finance/transactions", response_model=TransactionOut, dependencies=deps)
     def create_transaction(body: TransactionCreate) -> TransactionOut:
         return create_transaction_op(service, body)
 
-    @app.get("/api/finance/transactions", response_model=TransactionPageOut)
+    @app.get("/api/finance/transactions", response_model=TransactionPageOut, dependencies=deps)
     def list_transactions(
         account_id: Annotated[str | None, Query()] = None,
         start: Annotated[date | None, Query()] = None,
@@ -356,11 +364,11 @@ def register_finance_routes(app: FastAPI, service: FinanceService) -> None:
             service, account_id=account_id, start=start, end=end, limit=limit, offset=offset
         )
 
-    @app.get("/api/finance/net-worth", response_model=NetWorthOut)
+    @app.get("/api/finance/net-worth", response_model=NetWorthOut, dependencies=deps)
     def net_worth() -> NetWorthOut:
         return net_worth_op(service)
 
-    @app.get("/api/finance/income-expense", response_model=IncomeExpenseOut)
+    @app.get("/api/finance/income-expense", response_model=IncomeExpenseOut, dependencies=deps)
     def income_expense(
         start: Annotated[date, Query()],
         end: Annotated[date, Query()],
@@ -368,14 +376,15 @@ def register_finance_routes(app: FastAPI, service: FinanceService) -> None:
     ) -> IncomeExpenseOut:
         return income_expense_op(service, start=start, end=end, owner=owner)
 
-    @app.post("/api/finance/budgets", response_model=BudgetOut)
+    @app.post("/api/finance/budgets", response_model=BudgetOut, dependencies=deps)
     def set_budget(body: BudgetCreate) -> BudgetOut:
         return set_budget_op(service, body)
 
-    @app.get("/api/finance/budgets", response_model=BudgetListOut)
+    @app.get("/api/finance/budgets", response_model=BudgetListOut, dependencies=deps)
     def list_budgets(period: Annotated[str | None, Query()] = None) -> BudgetListOut:
         return list_budgets_op(service, period)
 
-    @app.get("/api/finance/budgets/variance", response_model=BudgetVarianceListOut)
+    @app.get("/api/finance/budgets/variance", response_model=BudgetVarianceListOut,
+             dependencies=deps)
     def budget_variance(period: Annotated[str, Query()]) -> BudgetVarianceListOut:
         return budget_variance_op(service, period)

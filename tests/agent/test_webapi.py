@@ -25,16 +25,33 @@ from strix.webapi.service import ResearchService
 
 
 def _fake_outcome(question: str, run_dir: Path, *, cancelled: bool = False) -> ResearchOutcome:
+    from strix.agent.models import (
+        AgentClaim,
+        AgentClaimType,
+        AgentVerificationStatus,
+        ClaimVerification,
+        ConclusionVerification,
+    )
+
+    verified_claim = AgentClaim(
+        claim_id="CL-1",
+        claim_type=AgentClaimType.OBSERVATION,
+        statement="a verified finding",
+        evidence_ids=("E1",),
+        verification=ClaimVerification(status=AgentVerificationStatus.VERIFIED),
+    )
     answer = ResearchAnswer(
         run_id="RUN-20261122-001",
         question=question,
         data_as_of=None,
         summary="A verified summary.",
-        verified_claims=(),
+        verified_claims=(verified_claim,),
         unresolved_claims=(),
         evidence=(),
         limitations=("example limitation",),
         disclaimer="not advice",
+        # A genuinely released run: the conclusion-level verdict admits it.
+        conclusion_verification=ConclusionVerification(outcome="admitted"),
     )
     usage = BudgetSnapshot(
         model_calls=2,
@@ -125,6 +142,88 @@ def test_result_includes_response_and_thread(tmp_path: Path) -> None:
     assert done.result["response"]["direct_answer"] == "No single session can be predicted."
     assert done.result["response"]["market_assessment"]["stance"] == "bearish"
     assert done.result["thread_id"] == job.thread_id
+
+
+def test_result_includes_supporting_documentation(tmp_path: Path) -> None:
+    from datetime import UTC, datetime
+
+    from strix.agent.models import (
+        AgentClaim,
+        AgentClaimType,
+        AgentEvidence,
+        AgentVerificationStatus,
+        ClaimVerification,
+        ResearchAnswer,
+        ResearchResponse,
+        SourceKind,
+    )
+
+    now = datetime(2026, 11, 23, tzinfo=UTC)
+    ev = AgentEvidence(
+        evidence_id="EV-1",
+        source_type=SourceKind.WEB_PAGE,
+        provider="Example",
+        source_title="A cited source",
+        retrieved_at=now,
+        content_hash="a" * 64,
+    )
+    claim = AgentClaim(
+        claim_id="CL-1",
+        claim_type=AgentClaimType.QUANTITATIVE,
+        statement="a verified statement",
+        evidence_ids=("EV-1",),
+        verification=ClaimVerification(status=AgentVerificationStatus.VERIFIED),
+    )
+    answer = ResearchAnswer(
+        run_id="RUN-DOC",
+        question="q",
+        data_as_of=now,
+        summary="s",
+        verified_claims=(claim,),
+        unresolved_claims=(),
+        evidence=(ev,),
+        limitations=(),
+        disclaimer="d",
+    )
+    response = ResearchResponse(
+        run_id="RUN-DOC",
+        question="q",
+        question_intent="intent",
+        direct_answer="the answer",
+        analysis="",
+        sources=(ev,),
+        verified_answer=answer,
+    )
+    outcome = ResearchOutcome(
+        answer=answer,
+        run_id="RUN-DOC",
+        run_dir=tmp_path,
+        usage=_fake_outcome("q", tmp_path).usage,
+        claims=(claim,),
+        response=response,
+    )
+
+    service = ResearchService(
+        tmp_path, config_loader=lambda: build_config(), runner=lambda question, **kw: outcome
+    )
+    job = service.submit("q")
+    done = _poll(service, job.id)
+    assert done.status == "completed"
+    assert done.result is not None
+    doc = done.result["documentation"]
+    assert doc is not None
+    assert doc["references"][0]["number"] == 1
+    assert doc["references"][0]["evidence_id"] == "EV-1"
+    assert doc["claim_citations"]["CL-1"] == [1]
+    assert doc["integrity"]["complete"] is True
+
+
+def test_result_documentation_is_null_without_response(tmp_path: Path) -> None:
+    service = _service(tmp_path)  # fake runner returns an outcome with no response
+    job = service.submit("q")
+    done = _poll(service, job.id)
+    assert done.result is not None
+    assert done.result["documentation"] is None
 
 
 def test_thread_context_carries_into_followup(tmp_path: Path) -> None:

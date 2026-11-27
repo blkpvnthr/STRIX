@@ -56,6 +56,7 @@ from strix.models import StrixModel
 #: Domain-separation tag for the run-level signature.
 AGENT_RUN_SIGNING_DOMAIN = "strix.agent-run"
 _BRIDGE_POLICY_VERSION = "agent-verifier-bridge-1"
+_CONCLUSION_POLICY_VERSION = "agent-conclusion-verdict-1"
 
 #: Gateway outcomes under which the answer is released to the caller.
 _RELEASED = frozenset({GatewayOutcome.AUTHORIZED, GatewayOutcome.QUALIFIED})
@@ -151,16 +152,43 @@ class GovernedAgentOutcome:
     keyring: Keyring | None = None
 
 
+#: Mapping from the conclusion-level verdict to the gateway's (admission, verification) signal.
+_CONCLUSION_ADMISSION: dict[str, tuple[AdmissionOutcome, VerificationOutcome]] = {
+    "admitted": (AdmissionOutcome.ADMITTED, VerificationOutcome.VERIFIED),
+    "abstained": (AdmissionOutcome.ABSTAINED, VerificationOutcome.INSUFFICIENT_EVIDENCE),
+    "rejected": (AdmissionOutcome.REJECTED, VerificationOutcome.CONTRADICTED),
+}
+
+
 def _derive_admission(outcome: ResearchOutcome) -> AdmissionDecision:
-    """Surface the agent verifier's verdict as the gateway's evidence signal."""
+    """Surface the gateway's evidence signal.
+
+    Prefers the REAL conclusion-level DTEC verdict (``agent.conclusion_check``) the live
+    lifecycle attaches to the answer — so a recompute-contradicted run drives the gateway to
+    REJECTED (and the answer is not released). Falls back to the per-claim verifier signal only
+    when no conclusion verdict is present (manually-constructed / legacy outcomes).
+    """
     verified = outcome.answer.verified_claims
+    claim_id = verified[0].claim_id if verified else "none"
+    cv = outcome.answer.conclusion_verification
+    if cv is not None:
+        admission, verification = _CONCLUSION_ADMISSION.get(
+            cv.outcome, (AdmissionOutcome.ABSTAINED, VerificationOutcome.INSUFFICIENT_EVIDENCE)
+        )
+        return AdmissionDecision(
+            outcome=admission,
+            verification_outcome=verification,
+            predicate_results=(),
+            policy_version=_CONCLUSION_POLICY_VERSION,
+            claim_id=claim_id,
+        )
     if verified:
         return AdmissionDecision(
             outcome=AdmissionOutcome.ADMITTED,
             verification_outcome=VerificationOutcome.VERIFIED,
             predicate_results=(),
             policy_version=_BRIDGE_POLICY_VERSION,
-            claim_id=verified[0].claim_id,
+            claim_id=claim_id,
         )
     return AdmissionDecision(
         outcome=AdmissionOutcome.ABSTAINED,

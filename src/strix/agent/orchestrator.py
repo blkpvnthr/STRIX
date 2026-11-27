@@ -27,8 +27,10 @@ from typing import Any
 from strix.agent import AGENT_VERSION
 from strix.agent.budget import BudgetSnapshot, BudgetTracker
 from strix.agent.citations import resolve_claim_citations
+from strix.agent.conclusion_check import verify_final_answer
 from strix.agent.config import AgentConfig, merged_environment
 from strix.agent.connectors.market_data import AlpacaConnector
+from strix.agent.dependency_check import assess_claim_independence
 from strix.agent.evidence_collector import EvidenceCollector
 from strix.agent.memory import ThreadContext
 from strix.agent.models import (
@@ -156,6 +158,22 @@ def run_research_question(
     for flag in sanity_flags:
         limitations.append(f"Data-quality check [{flag.code}]: {flag.message}")
 
+    # Dependency-aware admission (R-N1 / A_ind projection): flag any verified claim whose
+    # cited evidence collapses to a single origin so duplicated/shared-origin evidence is
+    # never presented as independent corroboration (§2, §4). Additive — never drops a claim.
+    emit("Checking evidence independence (dependency-aware)")
+    artificially_corroborated = tuple(
+        c.claim_id
+        for c in verified
+        if assess_claim_independence(c, collector).artificial_corroboration
+    )
+    if artificially_corroborated:
+        limitations.append(
+            "Evidence-independence check: the cited corroboration for "
+            f"{', '.join(artificially_corroborated)} collapses to a single underlying source "
+            "(shared content hash); treat it as single-sourced, not independently corroborated."
+        )
+
     emit("Synthesizing analysis")
     draft = synthesize(
         question=research_question,
@@ -172,6 +190,26 @@ def run_research_question(
     )
     limitations.extend(draft.limitations)
 
+    # Independent conclusion-level verification of the COMPLETE final answer (DTEC A_C —
+    # R∧K∧F). This runs on the authoritative chokepoint, so both CLI and webapi inherit it;
+    # it is additive and never relaxes the per-claim verification above.
+    emit("Independently verifying the final conclusion")
+    conclusion_verification = verify_final_answer(
+        proposition=draft.direct_answer, verified=verified, unresolved=unresolved
+    )
+    if conclusion_verification.outcome == "rejected":
+        opposing = ", ".join(conclusion_verification.opposing_claim_ids)
+        limitations.append(
+            "Conclusion-level verification REJECTED the synthesized answer: the run contains "
+            f"independently contradicted evidence ({opposing}); treat the conclusion as "
+            "unverified at the conclusion level."
+        )
+    elif conclusion_verification.outcome == "abstained":
+        limitations.append(
+            "Conclusion-level verification ABSTAINED: no independently verified premise "
+            "supports a conclusion for this question."
+        )
+
     _collect_limitations(limitations, verified, unresolved, exhausted_reason, config)
 
     def make_answer(run_id: str) -> ResearchAnswer:
@@ -183,6 +221,7 @@ def run_research_question(
             collector=collector,
             limitations=tuple(dict.fromkeys(limitations)),
             now=now,
+            conclusion_verification=conclusion_verification,
         )
 
     diagnostics = {
