@@ -218,7 +218,7 @@ def _quarterly_facts(
             value = item["val"]
         except (KeyError, ValueError, TypeError):
             continue
-        if not isinstance(value, (int, Decimal)) or isinstance(value, bool):
+        if not isinstance(value, int | Decimal) or isinstance(value, bool):
             continue
         if filed > as_of_date:
             continue

@@ -73,7 +73,7 @@ def to_jsonable(obj: Any) -> Any:
     Raises ``TypeError`` for floats, bytes, naive datetimes, non-string
     mapping keys, and any unsupported type.
     """
-    if obj is None or isinstance(obj, (bool, str)):
+    if obj is None or isinstance(obj, bool | str):
         return obj
     if isinstance(obj, float):
         raise TypeError("float values are forbidden in canonical serialization; use Decimal")
@@ -99,7 +99,7 @@ def to_jsonable(obj: Any) -> Any:
                 raise TypeError(f"mapping keys must be str, got {type(key).__name__}")
             result[key] = to_jsonable(val)
         return result
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         return [to_jsonable(item) for item in obj]
     raise TypeError(f"type {type(obj).__name__} is not canonically serializable")
 

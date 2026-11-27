@@ -18,7 +18,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -32,7 +32,7 @@ from strix.lakehouse.silver.models import (
 )
 from strix.lakehouse.silver.schemas import DatasetSchema
 
-_COMPRESSION = "zstd"
+_COMPRESSION: Final = "zstd"
 _DATE_FIELDS_FOR_YEAR = ("date", "observation_date", "session_date", "period_end", "filed_date")
 
 

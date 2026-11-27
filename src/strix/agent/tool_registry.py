@@ -435,7 +435,7 @@ def _type_ok(expected: str | None, value: Any) -> bool:
     if expected == "integer":
         return isinstance(value, int) and not isinstance(value, bool)
     if expected == "number":
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
+        return isinstance(value, int | float) and not isinstance(value, bool)
     if expected == "array":
         return isinstance(value, list)
     if expected == "object":

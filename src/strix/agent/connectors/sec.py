@@ -97,7 +97,7 @@ def _extract_concept(raw: bytes, tags: tuple[str, ...], as_of: date) -> tuple[Ba
                 value = item["val"]
             except (KeyError, ValueError, TypeError):
                 continue
-            if isinstance(value, bool) or not isinstance(value, (int, Decimal)):
+            if isinstance(value, bool) or not isinstance(value, int | Decimal):
                 continue
             if filed > as_of or not (_QUARTER_MIN_DAYS <= (end - start).days <= _QUARTER_MAX_DAYS):
                 continue

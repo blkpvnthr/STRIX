@@ -17,7 +17,7 @@ from strix.lakehouse.contracts import DataSource
 from strix.lakehouse.silver import SILVER_VERSION
 
 # Lineage columns present on EVERY Silver row (observation -> Bronze artifact).
-LINEAGE_FIELDS: list[pa.Field] = [
+LINEAGE_FIELDS: list[pa.Field[pa.DataType]] = [
     pa.field("natural_key", pa.string(), nullable=False),  # surrogate = hash(natural key)
     pa.field("source_feed", pa.string(), nullable=False),
     pa.field("bronze_artifact_id", pa.string(), nullable=False),
@@ -44,11 +44,11 @@ class DatasetSchema:
     #: Fields that may legitimately be null (beyond arrow nullability).
     nullable_value_fields: tuple[str, ...] = field(default_factory=tuple)
 
-    def with_lineage(self, fields: list[pa.Field]) -> pa.Schema:
+    def with_lineage(self, fields: list[pa.Field[pa.DataType]]) -> pa.Schema:
         return pa.schema([*fields, *LINEAGE_FIELDS])
 
 
-def _schema(core: list[pa.Field]) -> pa.Schema:
+def _schema(core: list[pa.Field[pa.DataType]]) -> pa.Schema:
     return pa.schema([*core, *LINEAGE_FIELDS])
 
 

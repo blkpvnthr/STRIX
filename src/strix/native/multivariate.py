@@ -64,7 +64,7 @@ __all__ = [
 
 def _coerce_series(values: Sequence[object], *, name: str) -> tuple[Decimal, ...]:
     """Coerce an input sequence to finite Decimals (float/NaN/Inf rejected)."""
-    if isinstance(values, (str, bytes)):
+    if isinstance(values, str | bytes):
         raise CalculationError(f"{name} must be a sequence of numbers, not a string")
     items = tuple(as_decimal(v) for v in values)
     if not items:
@@ -238,7 +238,7 @@ def correlation_matrix(
 def _coerce_columns(
     columns: Sequence[Sequence[object]],
 ) -> tuple[tuple[Decimal, ...], ...]:
-    if isinstance(columns, (str, bytes)):
+    if isinstance(columns, str | bytes):
         raise CalculationError("columns must be a sequence of series")
     cols = tuple(
         _coerce_series(col, name=f"column[{i}]") for i, col in enumerate(columns)
