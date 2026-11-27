@@ -112,7 +112,7 @@ class AdmissionDecision(StrixModel):
 
 def _value_of(node: Node) -> Decimal | None:
     """Return the scalar numeric value a node carries, if any."""
-    if isinstance(node, (SourceObservation, SourceFact, Evidence, CalculationResult)):
+    if isinstance(node, SourceObservation | SourceFact | Evidence | CalculationResult):
         return node.value
     if isinstance(node, ComputationResult):
         return node.scalar
@@ -123,7 +123,7 @@ def _unit_of(node: Node) -> str | None:
     """Return a node's unit as a plain string, if any."""
     if isinstance(node, SourceObservation):
         return node.unit
-    if isinstance(node, (SourceFact, Evidence, CalculationResult)):
+    if isinstance(node, SourceFact | Evidence | CalculationResult):
         return node.unit.value
     if isinstance(node, ComputationResult):
         return node.output_unit
@@ -132,7 +132,7 @@ def _unit_of(node: Node) -> str | None:
 
 def _subject_of(node: Node) -> str | None:
     """Return a node's subject/entity id, if it names one."""
-    if isinstance(node, (SourceObservation, SourceFact, Evidence, CalculationResult)):
+    if isinstance(node, SourceObservation | SourceFact | Evidence | CalculationResult):
         return node.subject_id
     return None
 
@@ -165,7 +165,7 @@ def _available_time_of(node: Node) -> datetime | None:
     """
     if isinstance(node, SourceObservation):
         return node.available_at or node.publication_at
-    if isinstance(node, (SourceFact, Evidence, SourceArtifact)):
+    if isinstance(node, SourceFact | Evidence | SourceArtifact):
         return node.known_at
     return None
 

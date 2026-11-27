@@ -185,7 +185,7 @@ def _parse_bars(raw: bytes) -> tuple[BarPoint, ...]:
             continue
         timestamp = str(bar.get("t", ""))
         close = bar.get("c")
-        if not timestamp or not isinstance(close, (int, Decimal)) or isinstance(close, bool):
+        if not timestamp or not isinstance(close, int | Decimal) or isinstance(close, bool):
             continue
         points.append(BarPoint(at=timestamp[:10], close=Decimal(close)))
     return tuple(points)
@@ -198,7 +198,7 @@ def _parse_latest_trade(raw: bytes) -> tuple[Decimal | None, str | None]:
         return None, None
     price = trade.get("p")
     at = str(trade.get("t", "")) or None
-    if not isinstance(price, (int, Decimal)) or isinstance(price, bool):
+    if not isinstance(price, int | Decimal) or isinstance(price, bool):
         return None, at
     return Decimal(price), at
 

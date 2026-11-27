@@ -87,7 +87,7 @@ def _q(value: Decimal) -> Decimal:
 
 def _coerce(series: Sequence[object], *, what: str) -> list[Decimal]:
     """Coerce every element to a finite ``Decimal`` (rejecting float/NaN/Inf)."""
-    if not isinstance(series, Sequence) or isinstance(series, (str, bytes)):
+    if not isinstance(series, Sequence) or isinstance(series, str | bytes):
         raise StrixError(f"{what} must be a sequence of numbers")
     return [as_decimal(x) for x in series]
 
