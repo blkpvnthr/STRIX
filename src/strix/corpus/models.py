@@ -248,12 +248,11 @@ class DocumentChange(CorpusModel):
                         "RENAMED requires the same content_hash on both sides "
                         "(a different hash is not a pure rename)"
                     )
-            elif self.change_type is DocumentChangeType.UNCHANGED:
-                if (
-                    self.old_relative_path != self.new_relative_path
-                    or self.old_content_hash != self.new_content_hash
-                ):
-                    raise ValueError("UNCHANGED requires identical relative_path and content_hash")
+            elif self.change_type is DocumentChangeType.UNCHANGED and (
+                self.old_relative_path != self.new_relative_path
+                or self.old_content_hash != self.new_content_hash
+            ):
+                raise ValueError("UNCHANGED requires identical relative_path and content_hash")
         return self
 
 
